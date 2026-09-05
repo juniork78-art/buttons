@@ -9,6 +9,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  deleteDoc,
   onSnapshot,
   updateDoc
 } from 'firebase/firestore';
@@ -45,6 +46,9 @@ style.innerHTML = `
   ::-webkit-scrollbar-thumb {
     background: rgba(120, 119, 116, 0.3);
     border-radius: 3px;
+  }
+  .sound-card:hover .delete-btn {
+    opacity: 1;
   }
 `;
 document.head.appendChild(style);
@@ -124,17 +128,7 @@ function MainApp() {
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-          
-          // Se estiver vazio, insere alguns sons padrão de exemplo
-          if (lista.length === 0) {
-            const padroes = [
-              { id: '1', titulo: 'Airhorn', cor: '#e91e63', plays: 12, audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3' },
-              { id: '2', titulo: 'Rimshot', cor: '#009688', plays: 5, audioUrl: 'https://www.myinstants.com/media/sounds/rimshot.mp3' }
-            ];
-            padroes.forEach(p => setDoc(doc(db, 'myinstants_sons', p.id), p));
-          } else {
-            setSons(lista);
-          }
+          setSons(lista);
         });
         return () => unsubscribe();
       } catch (e) {}
@@ -153,9 +147,19 @@ function MainApp() {
     }
   };
 
+  const excluirSom = async (id, titulo) => {
+    if (window.confirm(`Deseja realmente excluir o botão "${titulo}"?`)) {
+      try {
+        await deleteDoc(doc(db, 'myinstants_sons', id));
+      } catch (e) {
+        alert("Erro ao excluir som: " + e.message);
+      }
+    }
+  };
+
   const criarNovoSomPorUrl = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
-      alert("Preencha o título e a URL do áudio.");
+      alert("Preencha o título e a URL direta do áudio.");
       return;
     }
 
@@ -223,10 +227,21 @@ function MainApp() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', maxWidth: '1200px', margin: '0 auto' }}>
         {sonsFiltrados.map((item) => (
-          <div key={item.id} style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 10px rgba(0,0,0,0.4)' }}>
+          <div key={item.id} className="sound-card" style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 10px rgba(0,0,0,0.4)', position: 'relative' }}>
+            
+            {/* Botão de Excluir (Aparece ao passar o mouse) */}
+            <button 
+              className="delete-btn"
+              onClick={() => excluirSom(item.id, item.titulo)}
+              title="Excluir botão"
+              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', opacity: 0, transition: 'opacity 0.2s ease' }}
+            >
+              ✕
+            </button>
+
             <button 
               onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-              style={{ width: '90px', height: '90px', borderRadius: '50%', border: 'none', backgroundColor: item.cor || '#ff5722', color: '#fff', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: '13px', padding: '10px', wordBreak: 'break-word', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}
+              style={{ width: '90px', height: '90px', borderRadius: '50%', border: 'none', backgroundColor: item.cor || '#ff5722', color: '#fff', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: '13px', padding: '10px', wordBreak: 'break-word', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', marginTop: '8px' }}
             >
               {item.titulo}
             </button>
@@ -253,7 +268,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DIRETA DO ÁUDIO (.MP3)</label>
-              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="https://exemplo.com/som.mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="https://www.myinstants.com/media/sounds/faaah.mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '20px' }}>
