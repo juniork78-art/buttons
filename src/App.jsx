@@ -274,15 +274,15 @@ function MainApp() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
         {sonsFiltrados.map((item) => (
-          <div key={item.id} style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 10px rgba(0,0,0,0.4)', position: 'relative' }}>
+          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
             
-            {/* Botão de Excluir visível no canto superior direito */}
+            {/* Botão de Excluir posicionado no canto superior direito do card */}
             <button 
               onClick={() => excluirSom(item.id, item.titulo)}
               title="Excluir botão"
-              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
+              style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
             >
               ✕
             </button>
@@ -290,15 +290,15 @@ function MainApp() {
             <button 
               className="instant-btn"
               onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-              style={{ backgroundColor: item.cor || '#ff5722', marginTop: '10px' }}
+              style={{ backgroundColor: item.cor || '#ff5722', marginTop: '6px' }}
             >
               <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
             </button>
 
-            <div style={{ fontSize: '15px', textAlign: 'center', margin: '14px 0 4px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+            <div style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
               {item.titulo}
             </div>
-            <div style={{ fontSize: '12px', color: '#888', textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
               Reproduções: {item.plays || 0}
             </div>
           </div>
