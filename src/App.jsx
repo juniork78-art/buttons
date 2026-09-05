@@ -10,6 +10,7 @@ import {
   doc, 
   setDoc, 
   deleteDoc,
+  getDoc,
   onSnapshot,
   updateDoc
 } from 'firebase/firestore';
@@ -70,18 +71,13 @@ style.innerHTML = `
     word-break: break-word;
     outline: none;
     user-select: none;
-    
-    /* Sombra 3D profunda simulando relevo esférico */
     box-shadow: 
       inset 0 6px 12px rgba(255, 255, 255, 0.4), 
       inset 0 -8px 12px rgba(0, 0, 0, 0.6), 
       0 8px 16px rgba(0, 0, 0, 0.5);
-    
-    /* Efeito suave para a transição de clique */
     transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
 
-  /* Efeito de brilho reflexivo superior (estilo bolha/gel) */
   .instant-btn::before {
     content: '';
     position: absolute;
@@ -94,7 +90,6 @@ style.innerHTML = `
     pointer-events: none;
   }
 
-  /* Animação de Aperto (Afundando ao clicar) */
   .instant-btn:active {
     transform: scale(0.92) translateY(4px);
     box-shadow: 
@@ -142,11 +137,13 @@ export default function AppWrapper() {
 function MainApp() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [sons, setSons] = useState([]);
+  const [sonsPendentes, setSonsPendentes] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som e Modal de Login do Admin
+  // Modais
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [modalLogin, setModalLogin] = useState(false);
+  const [modalAprovacao, setModalAprovacao] = useState(false);
 
   const [novoTitulo, setNovoTitulo] = useState('');
   const [urlAudio, setUrlAudio] = useState('');
@@ -165,7 +162,6 @@ function MainApp() {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
-  // Referência global para controlar o som ativo atual
   const currentAudioRef = useRef(null);
 
   useEffect(() => {
@@ -182,6 +178,7 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
+  // Ouve os sons aprovados (públicos)
   useEffect(() => {
     if (db) {
       try {
@@ -196,6 +193,24 @@ function MainApp() {
       } catch (e) {}
     }
   }, []);
+
+  // Ouve os sons pendentes (visível apenas para o admin)
+  useEffect(() => {
+    if (db && usuarioLogado === ADMIN_EMAIL) {
+      try {
+        const unsubscribe = onSnapshot(collection(db, 'myinstants_pendentes'), (snapshot) => {
+          const lista = [];
+          snapshot.forEach((docSnap) => {
+            lista.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          setSonsPendentes(lista);
+        });
+        return () => unsubscribe();
+      } catch (e) {}
+    } else {
+      setSonsPendentes([]);
+    }
+  }, [usuarioLogado]);
 
   const reproduzirSom = async (id, audioUrl, playsAtuais) => {
     try {
@@ -222,6 +237,35 @@ function MainApp() {
         await deleteDoc(doc(db, 'myinstants_sons', id));
       } catch (e) {
         alert("Erro ao excluir som: " + e.message);
+      }
+    }
+  };
+
+  // Aprovar som pendente
+  const aprovarSom = async (som) => {
+    try {
+      // Adiciona na coleção oficial de aprovados
+      await setDoc(doc(db, 'myinstants_sons', som.id), {
+        titulo: som.titulo,
+        audioUrl: som.audioUrl,
+        cor: som.cor,
+        plays: 0,
+        criadoEm: som.criadoEm || Date.now()
+      });
+      // Remove da coleção de pendentes
+      await deleteDoc(doc(db, 'myinstants_pendentes', som.id));
+    } catch (e) {
+      alert("Erro ao aprovar som: " + e.message);
+    }
+  };
+
+  // Rejeitar som pendente
+  const rejeitarSom = async (id) => {
+    if (window.confirm("Deseja rejeitar e apagar este envio?")) {
+      try {
+        await deleteDoc(doc(db, 'myinstants_pendentes', id));
+      } catch (e) {
+        alert("Erro ao rejeitar som: " + e.message);
       }
     }
   };
@@ -291,7 +335,8 @@ function MainApp() {
     }
   };
 
-  const criarNovoSom = async () => {
+  // Visitantes enviam para a aba de pendentes; Admin publica direto ou gerencia
+  const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL ou grave um áudio.");
       return;
@@ -300,19 +345,28 @@ function MainApp() {
     setEnviando(true);
     try {
       const novoId = Date.now().toString();
-      await setDoc(doc(db, 'myinstants_sons', novoId), {
+      const dadosSom = {
         titulo: novoTitulo.trim(),
         audioUrl: urlAudio.trim(),
         cor: novaCor,
-        plays: 0,
         criadoEm: Date.now()
-      });
+      };
+
+      if (usuarioLogado === ADMIN_EMAIL) {
+        // Se for o admin, vai direto para o ar
+        await setDoc(doc(db, 'myinstants_sons', novoId), { ...dadosSom, plays: 0 });
+        alert("Som adicionado com sucesso!");
+      } else {
+        // Se for visitante, vai para a aba de moderação/pendentes
+        await setDoc(doc(db, 'myinstants_pendentes', novoId), dadosSom);
+        alert("Som enviado para análise do Administrador!");
+      }
 
       setModalNovoSom(false);
       setNovoTitulo('');
       setUrlAudio('');
     } catch (e) {
-      alert("Erro ao salvar som: " + e.message);
+      alert("Erro ao enviar som: " + e.message);
     } finally {
       setEnviando(false);
     }
@@ -325,7 +379,16 @@ function MainApp() {
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0 }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px' }}>
+          {isAdmin && sonsPendentes.length > 0 && (
+            <button 
+              onClick={() => setModalAprovacao(true)}
+              style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+            >
+              🔔 Aprovação ({sonsPendentes.length})
+            </button>
+          )}
+
           {isAdmin ? (
             <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
               Sair (Admin)
@@ -349,21 +412,18 @@ function MainApp() {
           onChange={(e) => setTermoBusca(e.target.value)}
           style={{ width: '100%', maxWidth: '450px', padding: '12px 20px', fontSize: '16px', borderRadius: '30px', border: '1px solid #333', backgroundColor: '#1e1e1e', color: '#fff', outline: 'none' }}
         />
-        {isAdmin && (
-          <button 
-            onClick={() => setModalNovoSom(true)}
-            style={{ padding: '0 24px', backgroundColor: '#ff5722', color: '#fff', border: 'none', borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(255,87,34,0.3)' }}
-          >
-            + Adicionar Som
-          </button>
-        )}
+        <button 
+          onClick={() => setModalNovoSom(true)}
+          style={{ padding: '0 24px', backgroundColor: '#ff5722', color: '#fff', border: 'none', borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(255,87,34,0.3)' }}
+        >
+          + Adicionar Som
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
         {sonsFiltrados.map((item) => (
           <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
             
-            {/* Botão de Excluir (Aparece APENAS para o Administrador) */}
             {isAdmin && (
               <button 
                 onClick={() => excluirSom(item.id, item.titulo)}
@@ -392,6 +452,41 @@ function MainApp() {
         ))}
       </div>
 
+      {/* MODAL DE APROVAÇÃO (EXCLUSIVO ADMIN) */}
+      {modalAprovacao && isAdmin && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
+          <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#ff9800', fontSize: '18px' }}>Sons Pendentes de Aprovação</h3>
+            
+            {sonsPendentes.length === 0 ? (
+              <p style={{ color: '#888', fontSize: '14px' }}>Nenhum som pendente no momento.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {sonsPendentes.map((p) => (
+                  <div key={p.id} style={{ background: '#252525', padding: '12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#fff' }}>{p.titulo}</div>
+                      <button 
+                        onClick={() => new Audio(p.audioUrl).play()} 
+                        style={{ background: 'transparent', border: 'none', color: '#4caf50', padding: 0, cursor: 'pointer', fontSize: '12px', marginTop: '4px', textDecoration: 'underline' }}
+                      >
+                        ▶ Testar áudio
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button onClick={() => aprovarSom(p)} style={{ background: '#4caf50', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Aprovar</button>
+                      <button onClick={() => rejeitarSom(p.id)} style={{ background: '#f44336', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>Rejeitar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button onClick={() => setModalAprovacao(false)} style={{ width: '100%', marginTop: '20px', padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Fechar</button>
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE LOGIN DO ADMIN */}
       {modalLogin && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
@@ -411,17 +506,17 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" onClick={() => setModalLogin(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button type="submit" style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Entrar</button>
+              <button type="submit" style={{ flex: '1', padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Entrar</button>
             </div>
           </form>
         </div>
       )}
 
-      {/* MODAL DE ADICIONAR SOM (EXCLUSIVO ADMIN) */}
+      {/* MODAL DE ADICIONAR SOM (DISPONÍVEL PARA VISITANTES E ADMIN) */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>Adicionar Novo Botão de Som</h3>
+            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>Enviar Novo Botão de Som</h3>
             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
@@ -448,8 +543,8 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando || gravando} onClick={criarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Salvando...' : 'Salvar'}
+              <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {enviando ? 'Enviando...' : 'Enviar'}
               </button>
             </div>
           </div>
