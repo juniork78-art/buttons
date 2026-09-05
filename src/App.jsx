@@ -118,7 +118,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div style={{ padding: '40px', background: '#191919', color: '#eb5757', fontFamily: 'sans-serif', minHeight: '100vh', boxSizing: 'border-box' }}>
           <h2>Ocorreu um erro ao carregar a aplicação.</h2>
-          <pre style={{ background: '-262626', padding: '15px', borderRadius: '5px', overflowX: 'auto', color: '#f4f4f0' }}>
+          <pre style={{ background: '#262626', padding: '15px', borderRadius: '5px', overflowX: 'auto', color: '#f4f4f0' }}>
             {this.state.error && this.state.error.toString()}
           </pre>
         </div>
@@ -155,6 +155,9 @@ function MainApp() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
+
+  // Referência global para controlar o som ativo atual (interrompe o anterior)
+  const currentAudioRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -193,7 +196,15 @@ function MainApp() {
 
   const reproduzirSom = async (id, audioUrl, playsAtuais) => {
     try {
+      // Se já tiver algum som tocando, pausa e zera ele imediatamente
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      }
+
       const audio = new Audio(audioUrl);
+      currentAudioRef.current = audio;
+
       audio.play().catch(err => console.log("Erro ao tocar áudio:", err));
 
       const novoPlays = (playsAtuais || 0) + 1;
@@ -213,7 +224,6 @@ function MainApp() {
     }
   };
 
-  // Função para iniciar a gravação de áudio do microfone por 5 segundos
   const iniciarGravacao = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -232,9 +242,8 @@ function MainApp() {
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
-          setUrlAudio(reader.result); // Salva o Base64 gerado direto no campo de áudio
+          setUrlAudio(reader.result);
         };
-        // Desliga o microfone
         stream.getTracks().forEach(track => track.stop());
       };
 
