@@ -89,7 +89,7 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som por Arquivo Local
+  // Modal de Adicionar Novo Som
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [arquivoAudio, setArquivoAudio] = useState(null);
@@ -143,48 +143,46 @@ function MainApp() {
     }
   };
 
-  const criarNovoSomPorArquivo = async () => {
+  // Envia o arquivo para a API pública de hospedagem e salva o link no Firestore
+  const criarNovoSomComHospedagemGratuita = async () => {
     if (!novoTitulo.trim() || !arquivoAudio) {
       alert("Preencha o título e selecione um arquivo de áudio.");
       return;
     }
 
-    // Trava de segurança para arquivos grandes (limite de 800KB para o banco não recusar)
-    if (arquivoAudio.size > 800 * 1024) {
-      alert("O arquivo é muito grande! Escolha um arquivo MP3 com menos de 800 KB (memes curtos).");
-      return;
-    }
-
     setEnviando(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(arquivoAudio);
+      const formData = new FormData();
+      formData.append("reqtype", "fileupload");
+      formData.append("fileToUpload", arquivoAudio);
 
-      reader.onload = async () => {
-        const base64Audio = reader.result;
-        const novoId = Date.now().toString();
+      // Envia para o Catbox (hospedagem pública e gratuita de arquivos)
+      const response = await fetch("https://catbox.moe/user/api.php", {
+        method: "POST",
+        body: formData
+      });
 
-        await setDoc(doc(db, 'myinstants_sons', novoId), {
-          titulo: novoTitulo.trim(),
-          audioUrl: base64Audio,
-          cor: novaCor,
-          plays: 0,
-          criadoEm: Date.now()
-        });
+      const audioUrl = await response.text();
 
-        setModalNovoSom(false);
-        setNovoTitulo('');
-        setArquivoAudio(null);
-        setEnviando(false);
-      };
+      if (!audioUrl.startsWith("http")) {
+        throw new Error("Falha ao hospedar o arquivo de áudio.");
+      }
 
-      reader.onerror = () => {
-        alert("Erro ao ler o arquivo.");
-        setEnviando(false);
-      };
+      const novoId = Date.now().toString();
+      await setDoc(doc(db, 'myinstants_sons', novoId), {
+        titulo: novoTitulo.trim(),
+        audioUrl: audioUrl.trim(),
+        cor: novaCor,
+        plays: 0,
+        criadoEm: Date.now()
+      });
 
+      setModalNovoSom(false);
+      setNovoTitulo('');
+      setArquivoAudio(null);
     } catch (e) {
-      alert("Erro ao salvar som: " + e.message);
+      alert("Erro ao enviar arquivo: " + e.message);
+    } finally {
       setEnviando(false);
     }
   };
@@ -249,7 +247,7 @@ function MainApp() {
         ))}
       </div>
 
-      {/* MODAL DE ADICIONAR SOM POR ARQUIVO */}
+      {/* MODAL DE ADICIONAR SOM */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
@@ -272,8 +270,8 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomPorArquivo} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Salvando...' : 'Salvar'}
+              <button disabled={enviando} onClick={criarNovoSomComHospedagemGratuita} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {enviando ? 'Enviando...' : 'Salvar'}
               </button>
             </div>
           </div>
@@ -311,7 +309,7 @@ function TelaLogin({ onLoginSucesso }) {
         </div>
         <div style={{ marginBottom: '25px' }}>
           <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SENHA</label>
-          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+          <input type="password" value= {senha} onChange={(e) => setSenha(e.target.value)} required style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
         </div>
         <button type="submit" style={{ width: '100%', padding: '12px', background: '#ff5722', border: 'none', color: '#fff', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer', fontSize: '15px' }}>
           Entrar
