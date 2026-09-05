@@ -10,12 +10,11 @@ import {
   doc, 
   setDoc, 
   deleteDoc,
-  getDoc,
   onSnapshot,
   updateDoc
 } from 'firebase/firestore';
 
-// Defina aqui o e-mail que terá privilégios de Administrador
+// Defina exatamente o mesmo e-mail que você usa no Firebase Authentication
 const ADMIN_EMAIL = "francisco@admin.com";
 
 // Inserção dinâmica segura do Favicon
@@ -154,6 +153,7 @@ function MainApp() {
   const [emailInput, setEmailInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [erroLogin, setErroLogin] = useState('');
+  const [carregandoLogin, setCarregandoLogin] = useState(false);
 
   // Estados de Gravação de Áudio
   const [gravando, setGravando] = useState(false);
@@ -241,10 +241,8 @@ function MainApp() {
     }
   };
 
-  // Aprovar som pendente
   const aprovarSom = async (som) => {
     try {
-      // Adiciona na coleção oficial de aprovados
       await setDoc(doc(db, 'myinstants_sons', som.id), {
         titulo: som.titulo,
         audioUrl: som.audioUrl,
@@ -252,14 +250,12 @@ function MainApp() {
         plays: 0,
         criadoEm: som.criadoEm || Date.now()
       });
-      // Remove da coleção de pendentes
       await deleteDoc(doc(db, 'myinstants_pendentes', som.id));
     } catch (e) {
       alert("Erro ao aprovar som: " + e.message);
     }
   };
 
-  // Rejeitar som pendente
   const rejeitarSom = async (id) => {
     if (window.confirm("Deseja rejeitar e apagar este envio?")) {
       try {
@@ -273,6 +269,7 @@ function MainApp() {
   const handleLoginAdmin = async (e) => {
     e.preventDefault();
     setErroLogin('');
+    setCarregandoLogin(true);
     try {
       const result = await signInWithEmailAndPassword(auth, emailInput, senhaInput);
       setUsuarioLogado(result.user.email);
@@ -280,7 +277,9 @@ function MainApp() {
       setEmailInput('');
       setSenhaInput('');
     } catch (e) {
-      setErroLogin('E-mail ou senha incorretos.');
+      setErroLogin('E-mail ou senha incorretos. Verifique suas credenciais no Firebase.');
+    } finally {
+      setCarregandoLogin(false);
     }
   };
 
@@ -335,7 +334,6 @@ function MainApp() {
     }
   };
 
-  // Visitantes enviam para a aba de pendentes; Admin publica direto ou gerencia
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL ou grave um áudio.");
@@ -353,11 +351,9 @@ function MainApp() {
       };
 
       if (usuarioLogado === ADMIN_EMAIL) {
-        // Se for o admin, vai direto para o ar
         await setDoc(doc(db, 'myinstants_sons', novoId), { ...dadosSom, plays: 0 });
         alert("Som adicionado com sucesso!");
       } else {
-        // Se for visitante, vai para a aba de moderação/pendentes
         await setDoc(doc(db, 'myinstants_pendentes', novoId), dadosSom);
         alert("Som enviado para análise do Administrador!");
       }
@@ -505,18 +501,20 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" onClick={() => setModalLogin(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button type="submit" style={{ flex: '1', padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Entrar</button>
+              <button type="button" disabled={carregandoLogin} onClick={() => setModalLogin(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button type="submit" disabled={carregandoLogin} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {carregandoLogin ? 'Entrando...' : 'Entrar'}
+              </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* MODAL DE ADICIONAR SOM (DISPONÍVEL PARA VISITANTES E ADMIN) */}
+      {/* MODAL DE ADICIONAR SOM */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>Enviar Novo Botão de Som</h3>
+            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
@@ -544,7 +542,7 @@ function MainApp() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Enviando...' : 'Enviar'}
+                {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
             </div>
           </div>
