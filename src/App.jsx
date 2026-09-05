@@ -47,8 +47,57 @@ style.innerHTML = `
     background: rgba(120, 119, 116, 0.3);
     border-radius: 3px;
   }
-  .sound-card:hover .delete-btn {
-    opacity: 1;
+
+  /* Estilo do Botão Estilo MyInstants (Esférico / 3D com Brilho de Gel e Animação de Aperto) */
+  .instant-btn {
+    width: 105px;
+    height: 105px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    word-break: break-word;
+    outline: none;
+    user-select: none;
+    
+    /* Sombra 3D profunda simulando relevo esférico */
+    box-shadow: 
+      inset 0 6px 12px rgba(255, 255, 255, 0.4), 
+      inset 0 -8px 12px rgba(0, 0, 0, 0.6), 
+      0 8px 16px rgba(0, 0, 0, 0.5);
+    
+    /* Efeito suave para a transição de clique */
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  /* Efeito de brilho reflexivo superior (estilo bolha/gel) */
+  .instant-btn::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 15px;
+    right: 15px;
+    height: 38px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.45), rgba(255,255,255,0.05));
+    border-radius: 50% 50% 40% 40%;
+    pointer-events: none;
+  }
+
+  /* Animação de Aperto (Afundando ao clicar) */
+  .instant-btn:active {
+    transform: scale(0.92) translateY(4px);
+    box-shadow: 
+      inset 0 3px 6px rgba(255, 255, 255, 0.2), 
+      inset 0 -3px 6px rgba(0, 0, 0, 0.8), 
+      0 2px 6px rgba(0, 0, 0, 0.4);
   }
 `;
 document.head.appendChild(style);
@@ -227,25 +276,26 @@ function MainApp() {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', maxWidth: '1200px', margin: '0 auto' }}>
         {sonsFiltrados.map((item) => (
-          <div key={item.id} className="sound-card" style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 10px rgba(0,0,0,0.4)', position: 'relative' }}>
+          <div key={item.id} style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 4px 10px rgba(0,0,0,0.4)', position: 'relative' }}>
             
-            {/* Botão de Excluir (Aparece ao passar o mouse) */}
+            {/* Botão de Excluir visível no canto superior direito */}
             <button 
-              className="delete-btn"
               onClick={() => excluirSom(item.id, item.titulo)}
               title="Excluir botão"
-              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', opacity: 0, transition: 'opacity 0.2s ease' }}
+              style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
             >
               ✕
             </button>
 
             <button 
+              className="instant-btn"
               onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-              style={{ width: '90px', height: '90px', borderRadius: '50%', border: 'none', backgroundColor: item.cor || '#ff5722', color: '#fff', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', fontSize: '13px', padding: '10px', wordBreak: 'break-word', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', marginTop: '8px' }}
+              style={{ backgroundColor: item.cor || '#ff5722', marginTop: '10px' }}
             >
-              {item.titulo}
+              <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
             </button>
-            <div style={{ fontSize: '15px', textAlign: 'center', margin: '12px 0 4px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+
+            <div style={{ fontSize: '15px', textAlign: 'center', margin: '14px 0 4px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
               {item.titulo}
             </div>
             <div style={{ fontSize: '12px', color: '#888', textAlign: 'center' }}>
