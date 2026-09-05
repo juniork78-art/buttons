@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
@@ -118,7 +118,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div style={{ padding: '40px', background: '#191919', color: '#eb5757', fontFamily: 'sans-serif', minHeight: '100vh', boxSizing: 'border-box' }}>
           <h2>Ocorreu um erro ao carregar a aplicação.</h2>
-          <pre style={{ background: '#262626', padding: '15px', borderRadius: '5px', overflowX: 'auto', color: '#f4f4f0' }}>
+          <pre style={{ background: '-262626', padding: '15px', borderRadius: '5px', overflowX: 'auto', color: '#f4f4f0' }}>
             {this.state.error && this.state.error.toString()}
           </pre>
         </div>
@@ -142,12 +142,19 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som por URL
+  // Modal de Adicionar Novo Som
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [urlAudio, setUrlAudio] = useState('');
   const [novaCor, setNovaCor] = useState('#ff5722');
   const [enviando, setEnviando] = useState(false);
+
+  // Estados de Gravação de Áudio
+  const [gravando, setGravando] = useState(false);
+  const [tempoRestante, setTempoRestante] = useState(5);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -206,9 +213,55 @@ function MainApp() {
     }
   };
 
-  const criarNovoSomPorUrl = async () => {
+  // Função para iniciar a gravação de áudio do microfone por 5 segundos
+  const iniciarGravacao = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          setUrlAudio(reader.result); // Salva o Base64 gerado direto no campo de áudio
+        };
+        // Desliga o microfone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setGravando(true);
+      setTempoRestante(5);
+
+      let segundos = 5;
+      timerRef.current = setInterval(() => {
+        segundos -= 1;
+        setTempoRestante(segundos);
+        if (segundos <= 0) {
+          clearInterval(timerRef.current);
+          mediaRecorder.stop();
+          setGravando(false);
+        }
+      }, 1000);
+
+    } catch (e) {
+      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
+      setGravando(false);
+    }
+  };
+
+  const criarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
-      alert("Preencha o título e a URL direta do áudio.");
+      alert("Preencha o título e insira uma URL ou grave um áudio.");
       return;
     }
 
@@ -278,7 +331,7 @@ function MainApp() {
         {sonsFiltrados.map((item) => (
           <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
             
-            {/* Botão de Excluir posicionado no canto superior direito do card */}
+            {/* Botão de Excluir */}
             <button 
               onClick={() => excluirSom(item.id, item.titulo)}
               title="Excluir botão"
@@ -313,12 +366,22 @@ function MainApp() {
             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
-              <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: FAAAAH" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+              <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Minha Voz" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DIRETA DO ÁUDIO (.MP3)</label>
-              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="https://www.myinstants.com/media/sounds/faaah.mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DO ÁUDIO OU GRAVAÇÃO</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3 ou grave ao lado" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px' }} />
+              </div>
+              <button 
+                type="button" 
+                disabled={gravando}
+                onClick={iniciarGravacao}
+                style={{ width: '100%', padding: '10px', background: gravando ? '#d32f2f' : '#2196f3', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+              >
+                {gravando ? `🎙️ Gravando... (${tempoRestante}s)` : '🎙️ Gravar Áudio (5s)'}
+              </button>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
@@ -327,8 +390,8 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomPorUrl} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button disabled={enviando || gravando} onClick={criarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
