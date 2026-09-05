@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { auth, db, storage } from './firebase';
+import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -12,11 +12,6 @@ import {
   onSnapshot,
   updateDoc
 } from 'firebase/firestore';
-import { 
-  ref, 
-  uploadBytes, 
-  getDownloadURL 
-} from 'firebase/storage';
 
 // Inserção dinâmica segura do Favicon
 try {
@@ -94,7 +89,7 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som com Arquivo
+  // Modal de Adicionar Novo Som
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
   const [arquivoAudio, setArquivoAudio] = useState(null);
@@ -148,7 +143,8 @@ function MainApp() {
     }
   };
 
-  const criarNovoSomComUpload = async () => {
+  // Converte o arquivo para Base64 e salva direto no Firestore
+  const criarNovoSomDireto = async () => {
     if (!novoTitulo.trim() || !arquivoAudio) {
       alert("Preencha o título e selecione um arquivo de áudio.");
       return;
@@ -156,31 +152,35 @@ function MainApp() {
 
     setEnviando(true);
     try {
-      // 1. Cria uma referência no Firebase Storage para o arquivo
-      const storageRef = ref(storage, `audios/${Date.now()}_${arquivoAudio.name}`);
+      const reader = new FileReader();
+      reader.readAsDataURL(arquivoAudio);
       
-      // 2. Faz o upload do arquivo real
-      const snapshot = await uploadBytes(storageRef, arquivoAudio);
-      
-      // 3. Pega a URL pública para download do áudio
-      const downloadUrl = await getDownloadURL(snapshot.ref);
+      reader.onload = async () => {
+        const base64Audio = reader.result;
+        const novoId = Date.now().toString();
 
-      // 4. Salva as informações do som no Firestore
-      const novoId = Date.now().toString();
-      await setDoc(doc(db, 'myinstants_sons', novoId), {
-        titulo: novoTitulo.trim(),
-        audioUrl: downloadUrl,
-        cor: novaCor,
-        plays: 0,
-        criadoEm: Date.now()
-      });
+        await setDoc(doc(db, 'myinstants_sons', novoId), {
+          titulo: novoTitulo.trim(),
+          audioUrl: base64Audio,
+          cor: novaCor,
+          plays: 0,
+          criadoEm: Date.now()
+        });
 
-      setModalNovoSom(false);
-      setNovoTitulo('');
-      setArquivoAudio(null);
+        setModalNovoSom(false);
+        setNovoTitulo('');
+        setArquivoAudio(null);
+        setEnviando(false);
+      };
+
+      reader.onerror = (error) => {
+        console.error("Erro ao ler arquivo:", error);
+        alert("Erro ao processar o arquivo de áudio.");
+        setEnviando(false);
+      };
+
     } catch (e) {
-      alert("Erro ao enviar áudio: " + e.message);
-    } finally {
+      alert("Erro ao salvar som: " + e.message);
       setEnviando(false);
     }
   };
@@ -222,7 +222,7 @@ function MainApp() {
           onClick={() => setModalNovoSom(true)}
           style={{ padding: '0 24px', backgroundColor: '#ff5722', color: '#fff', border: 'none', borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(255,87,34,0.3)' }}
         >
-          + Enviar Áudio
+          + Adicionar Som
         </button>
       </div>
 
@@ -245,11 +245,11 @@ function MainApp() {
         ))}
       </div>
 
-      {/* MODAL DE UPLOAD DE ARQUIVO */}
+      {/* MODAL DE ADICIONAR SOM */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>Enviar Novo Arquivo de Áudio</h3>
+            <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>Adicionar Novo Botão de Som</h3>
             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
@@ -268,8 +268,8 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomComUpload} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Enviando...' : 'Salvar'}
+              <button disabled={enviando} onClick={criarNovoSomDireto} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {enviando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
