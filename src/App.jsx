@@ -89,10 +89,10 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som
+  // Modal de Adicionar Novo Som por URL
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
-  const [arquivoAudio, setArquivoAudio] = useState(null);
+  const [urlAudio, setUrlAudio] = useState('');
   const [novaCor, setNovaCor] = useState('#ff5722');
   const [enviando, setEnviando] = useState(false);
 
@@ -124,7 +124,17 @@ function MainApp() {
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-          setSons(lista);
+          
+          // Se estiver vazio, insere alguns sons padrão de exemplo
+          if (lista.length === 0) {
+            const padroes = [
+              { id: '1', titulo: 'Airhorn', cor: '#e91e63', plays: 12, audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3' },
+              { id: '2', titulo: 'Rimshot', cor: '#009688', plays: 5, audioUrl: 'https://www.myinstants.com/media/sounds/rimshot.mp3' }
+            ];
+            padroes.forEach(p => setDoc(doc(db, 'myinstants_sons', p.id), p));
+          } else {
+            setSons(lista);
+          }
         });
         return () => unsubscribe();
       } catch (e) {}
@@ -143,39 +153,18 @@ function MainApp() {
     }
   };
 
-  // Envia o arquivo MP3 usando form-data para uma API de hospedagem rápida sem travamentos
-  const criarNovoSomComUploadSimples = async () => {
-    if (!novoTitulo.trim() || !arquivoAudio) {
-      alert("Preencha o título e selecione um arquivo de áudio.");
+  const criarNovoSomPorUrl = async () => {
+    if (!novoTitulo.trim() || !urlAudio.trim()) {
+      alert("Preencha o título e a URL do áudio.");
       return;
     }
 
     setEnviando(true);
     try {
-      const formData = new FormData();
-      formData.append("file", arquivoAudio);
-
-      // Hospeda o arquivo em uma API pública rápida de upload temporário/direto
-      const response = await fetch("https://envs.sh", {
-        method: "POST",
-        body: formData
-      });
-
-      if (!response.ok) {
-        throw new Error("Falha no servidor de upload.");
-      }
-
-      let audioUrl = await response.text();
-      audioUrl = audioUrl.trim();
-
-      if (!audioUrl.startsWith("http")) {
-        throw new Error("URL de áudio inválida retornada.");
-      }
-
       const novoId = Date.now().toString();
       await setDoc(doc(db, 'myinstants_sons', novoId), {
         titulo: novoTitulo.trim(),
-        audioUrl: audioUrl,
+        audioUrl: urlAudio.trim(),
         cor: novaCor,
         plays: 0,
         criadoEm: Date.now()
@@ -183,10 +172,9 @@ function MainApp() {
 
       setModalNovoSom(false);
       setNovoTitulo('');
-      setArquivoAudio(null);
+      setUrlAudio('');
     } catch (e) {
-      console.error(e);
-      alert("Erro ao enviar arquivo: " + e.message);
+      alert("Erro ao salvar som: " + e.message);
     } finally {
       setEnviando(false);
     }
@@ -214,7 +202,7 @@ function MainApp() {
           Sair
         </button>
         <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>MyInstants</h1>
-        <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Envie seus arquivos de áudio locais</p>
+        <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '35px', flexWrap: 'wrap' }}>
@@ -264,8 +252,8 @@ function MainApp() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SELECIONAR ARQUIVO (.MP3)</label>
-              <input type="file" accept="audio/*" onChange={(e) => setArquivoAudio(e.target.files[0])} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', cursor: 'pointer' }} />
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DIRETA DO ÁUDIO (.MP3)</label>
+              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="https://exemplo.com/som.mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '20px' }}>
@@ -275,8 +263,8 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomComUploadSimples} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Enviando...' : 'Salvar'}
+              <button disabled={enviando} onClick={criarNovoSomPorUrl} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {enviando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
