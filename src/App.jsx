@@ -14,8 +14,8 @@ import {
   updateDoc
 } from 'firebase/firestore';
 
-// Defina exatamente o mesmo e-mail que você usa no Firebase Authentication
-const ADMIN_EMAIL = "francisco@admin.com";
+// Seu e-mail de administrador configurado corretamente
+const ADMIN_EMAIL = "admin@gmail.com";
 
 // Inserção dinâmica segura do Favicon
 try {
@@ -277,7 +277,7 @@ function MainApp() {
       setEmailInput('');
       setSenhaInput('');
     } catch (e) {
-      setErroLogin('E-mail ou senha incorretos. Verifique suas credenciais no Firebase.');
+      setErroLogin('E-mail ou senha incorretos. Verifique se a conta existe no Firebase Auth.');
     } finally {
       setCarregandoLogin(false);
     }
