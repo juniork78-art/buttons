@@ -14,6 +14,9 @@ import {
   updateDoc
 } from 'firebase/firestore';
 
+// Defina aqui o e-mail que terá privilégios de Administrador
+const ADMIN_EMAIL = "francisco@admin.com";
+
 // Inserção dinâmica segura do Favicon
 try {
   const faviconSvg = `
@@ -138,16 +141,22 @@ export default function AppWrapper() {
 
 function MainApp() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som
+  // Modal de Adicionar Novo Som e Modal de Login do Admin
   const [modalNovoSom, setModalNovoSom] = useState(false);
+  const [modalLogin, setModalLogin] = useState(false);
+
   const [novoTitulo, setNovoTitulo] = useState('');
   const [urlAudio, setUrlAudio] = useState('');
   const [novaCor, setNovaCor] = useState('#ff5722');
   const [enviando, setEnviando] = useState(false);
+
+  // Campos de Login do Admin
+  const [emailInput, setEmailInput] = useState('');
+  const [senhaInput, setSenhaInput] = useState('');
+  const [erroLogin, setErroLogin] = useState('');
 
   // Estados de Gravação de Áudio
   const [gravando, setGravando] = useState(false);
@@ -156,31 +165,25 @@ function MainApp() {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
-  // Referência global para controlar o som ativo atual (interrompe o anterior)
+  // Referência global para controlar o som ativo atual
   const currentAudioRef = useRef(null);
 
   useEffect(() => {
     try {
-      if (!auth) {
-        setLoadingAuth(false);
-        return;
-      }
+      if (!auth) return;
       const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user && user.email) {
           setUsuarioLogado(user.email);
         } else {
           setUsuarioLogado(null);
         }
-        setLoadingAuth(false);
       });
       return () => unsubscribe();
-    } catch (e) {
-      setLoadingAuth(false);
-    }
+    } catch (e) {}
   }, []);
 
   useEffect(() => {
-    if (usuarioLogado && db) {
+    if (db) {
       try {
         const unsubscribe = onSnapshot(collection(db, 'myinstants_sons'), (snapshot) => {
           const lista = [];
@@ -192,11 +195,10 @@ function MainApp() {
         return () => unsubscribe();
       } catch (e) {}
     }
-  }, [usuarioLogado]);
+  }, []);
 
   const reproduzirSom = async (id, audioUrl, playsAtuais) => {
     try {
-      // Se já tiver algum som tocando, pausa e zera ele imediatamente
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
         currentAudioRef.current.currentTime = 0;
@@ -222,6 +224,27 @@ function MainApp() {
         alert("Erro ao excluir som: " + e.message);
       }
     }
+  };
+
+  const handleLoginAdmin = async (e) => {
+    e.preventDefault();
+    setErroLogin('');
+    try {
+      const result = await signInWithEmailAndPassword(auth, emailInput, senhaInput);
+      setUsuarioLogado(result.user.email);
+      setModalLogin(false);
+      setEmailInput('');
+      setSenhaInput('');
+    } catch (e) {
+      setErroLogin('E-mail ou senha incorretos.');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUsuarioLogado(null);
+    } catch (e) {}
   };
 
   const iniciarGravacao = async () => {
@@ -263,7 +286,7 @@ function MainApp() {
       }, 1000);
 
     } catch (e) {
-      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
+      alert("Erro ao acessar o microfone.");
       setGravando(false);
     }
   };
@@ -295,27 +318,25 @@ function MainApp() {
     }
   };
 
-  if (loadingAuth) {
-    return (
-      <div style={{ color: '#fff', backgroundColor: '#121212', textAlign: 'center', marginTop: '40vh', fontFamily: 'sans-serif', fontSize: '16px', fontWeight: 'bold' }}>
-        Carregando Instants...
-      </div>
-    );
-  }
-
-  if (!usuarioLogado) {
-    return <TelaLogin onLoginSucesso={(email) => setUsuarioLogado(email)} />;
-  }
-
+  const isAdmin = usuarioLogado === ADMIN_EMAIL;
   const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
-        <button onClick={() => signOut(auth)} style={{ position: 'absolute', top: 0, right: 0, background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-          Sair
-        </button>
+        <div style={{ position: 'absolute', top: 0, right: 0 }}>
+          {isAdmin ? (
+            <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+              Sair (Admin)
+            </button>
+          ) : (
+            <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+              Entrar como Admin
+            </button>
+          )}
+        </div>
+
         <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>MyInstants</h1>
         <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
@@ -328,26 +349,30 @@ function MainApp() {
           onChange={(e) => setTermoBusca(e.target.value)}
           style={{ width: '100%', maxWidth: '450px', padding: '12px 20px', fontSize: '16px', borderRadius: '30px', border: '1px solid #333', backgroundColor: '#1e1e1e', color: '#fff', outline: 'none' }}
         />
-        <button 
-          onClick={() => setModalNovoSom(true)}
-          style={{ padding: '0 24px', backgroundColor: '#ff5722', color: '#fff', border: 'none', borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(255,87,34,0.3)' }}
-        >
-          + Adicionar Som
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => setModalNovoSom(true)}
+            style={{ padding: '0 24px', backgroundColor: '#ff5722', color: '#fff', border: 'none', borderRadius: '30px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(255,87,34,0.3)' }}
+          >
+            + Adicionar Som
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
         {sonsFiltrados.map((item) => (
           <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
             
-            {/* Botão de Excluir */}
-            <button 
-              onClick={() => excluirSom(item.id, item.titulo)}
-              title="Excluir botão"
-              style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
-            >
-              ✕
-            </button>
+            {/* Botão de Excluir (Aparece APENAS para o Administrador) */}
+            {isAdmin && (
+              <button 
+                onClick={() => excluirSom(item.id, item.titulo)}
+                title="Excluir botão"
+                style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
+              >
+                ✕
+              </button>
+            )}
 
             <button 
               className="instant-btn"
@@ -367,7 +392,32 @@ function MainApp() {
         ))}
       </div>
 
-      {/* MODAL DE ADICIONAR SOM */}
+      {/* MODAL DE LOGIN DO ADMIN */}
+      {modalLogin && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
+          <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: '#ff5722', fontSize: '18px', textAlign: 'center' }}>Painel do Administrador</h3>
+            {erroLogin && <p style={{ color: '#ff5252', fontSize: '13px', marginBottom: '12px', background: '#3b1c1c', padding: '8px', borderRadius: '4px' }}>{erroLogin}</p>}
+            
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>E-MAIL</label>
+              <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SENHA</label>
+              <input type="password" value={senhaInput} onChange={(e) => setSenhaInput(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={() => setModalLogin(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button type="submit" style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Entrar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* MODAL DE ADICIONAR SOM (EXCLUSIVO ADMIN) */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
@@ -380,9 +430,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DO ÁUDIO OU GRAVAÇÃO</label>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3 ou grave ao lado" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px' }} />
-              </div>
+              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3 ou grave ao lado" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
               <button 
                 type="button" 
                 disabled={gravando}
@@ -408,43 +456,6 @@ function MainApp() {
         </div>
       )}
 
-    </div>
-  );
-}
-
-function TelaLogin({ onLoginSucesso }) {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setErro('');
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, senha);
-      onLoginSucesso(result.user.email);
-    } catch (e) {
-      setErro('Erro ao entrar: Verifique seu e-mail e senha.');
-    }
-  };
-
-  return (
-    <div style={{ backgroundColor: '#121212', color: '#fff', minHeight: '100vh', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', boxSizing: 'border-box' }}>
-      <form onSubmit={handleLogin} style={{ background: '#1e1e1e', padding: '35px 28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-        <h2 style={{ textAlign: 'center', color: '#ff5722', marginTop: 0, marginBottom: '25px' }}>MyInstants Login</h2>
-        {erro && <p style={{ color: '#ff5252', fontSize: '13px', marginBottom: '15px', background: '#3b1c1c', padding: '10px', borderRadius: '6px' }}>{erro}</p>}
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>E-MAIL</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
-        </div>
-        <div style={{ marginBottom: '25px' }}>
-          <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SENHA</label>
-          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} required style={{ width: '100%', padding: '10px 12px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
-        </div>
-        <button type="submit" style={{ width: '100%', padding: '12px', background: '#ff5722', border: 'none', color: '#fff', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer', fontSize: '15px' }}>
-          Entrar
-        </button>
-      </form>
     </div>
   );
 }
