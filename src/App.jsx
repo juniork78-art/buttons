@@ -89,10 +89,10 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   
-  // Modal de Adicionar Novo Som
+  // Modal de Adicionar Novo Som por URL
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [novoTitulo, setNovoTitulo] = useState('');
-  const [arquivoAudio, setArquivoAudio] = useState(null);
+  const [urlAudio, setUrlAudio] = useState('');
   const [novaCor, setNovaCor] = useState('#ff5722');
   const [enviando, setEnviando] = useState(false);
 
@@ -143,44 +143,29 @@ function MainApp() {
     }
   };
 
-  // Converte o arquivo para Base64 e salva direto no Firestore
-  const criarNovoSomDireto = async () => {
-    if (!novoTitulo.trim() || !arquivoAudio) {
-      alert("Preencha o título e selecione um arquivo de áudio.");
+  const criarNovoSomPorUrl = async () => {
+    if (!novoTitulo.trim() || !urlAudio.trim()) {
+      alert("Preencha o título e a URL do áudio.");
       return;
     }
 
     setEnviando(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(arquivoAudio);
-      
-      reader.onload = async () => {
-        const base64Audio = reader.result;
-        const novoId = Date.now().toString();
+      const novoId = Date.now().toString();
+      await setDoc(doc(db, 'myinstants_sons', novoId), {
+        titulo: novoTitulo.trim(),
+        audioUrl: urlAudio.trim(),
+        cor: novaCor,
+        plays: 0,
+        criadoEm: Date.now()
+      });
 
-        await setDoc(doc(db, 'myinstants_sons', novoId), {
-          titulo: novoTitulo.trim(),
-          audioUrl: base64Audio,
-          cor: novaCor,
-          plays: 0,
-          criadoEm: Date.now()
-        });
-
-        setModalNovoSom(false);
-        setNovoTitulo('');
-        setArquivoAudio(null);
-        setEnviando(false);
-      };
-
-      reader.onerror = (error) => {
-        console.error("Erro ao ler arquivo:", error);
-        alert("Erro ao processar o arquivo de áudio.");
-        setEnviando(false);
-      };
-
+      setModalNovoSom(false);
+      setNovoTitulo('');
+      setUrlAudio('');
     } catch (e) {
       alert("Erro ao salvar som: " + e.message);
+    } finally {
       setEnviando(false);
     }
   };
@@ -207,7 +192,7 @@ function MainApp() {
           Sair
         </button>
         <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>MyInstants</h1>
-        <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Carregue e reproduza seus sons favoritos</p>
+        <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '35px', flexWrap: 'wrap' }}>
@@ -253,12 +238,12 @@ function MainApp() {
             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
-              <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Risada" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
+              <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Airhorn" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SELECIONAR ARQUIVO (.MP3 / .WAV)</label>
-              <input type="file" accept="audio/*" onChange={(e) => setArquivoAudio(e.target.files[0])} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', cursor: 'pointer' }} />
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DO ÁUDIO (.MP3)</label>
+              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="https://exemplo.com/som.mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '20px' }}>
@@ -268,7 +253,7 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomDireto} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+              <button disabled={enviando} onClick={criarNovoSomPorUrl} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
