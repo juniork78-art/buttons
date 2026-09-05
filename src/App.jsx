@@ -143,49 +143,51 @@ function MainApp() {
     }
   };
 
-  // Converte o arquivo localmente para Base64 (sem falhas de CORS)
-  const criarNovoSomLocal = async () => {
+  // Envia o arquivo MP3 usando form-data para uma API de hospedagem rápida sem travamentos
+  const criarNovoSomComUploadSimples = async () => {
     if (!novoTitulo.trim() || !arquivoAudio) {
       alert("Preencha o título e selecione um arquivo de áudio.");
       return;
     }
 
-    // Trava de segurança recomendada para manter o arquivo leve (< 700 KB)
-    if (arquivoAudio.size > 700 * 1024) {
-      alert("O arquivo é muito grande! Escolha um áudio MP3 com menos de 700 KB (memes e barulhos curtos).");
-      return;
-    }
-
     setEnviando(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(arquivoAudio);
+      const formData = new FormData();
+      formData.append("file", arquivoAudio);
 
-      reader.onload = async () => {
-        const base64Audio = reader.result;
-        const novoId = Date.now().toString();
+      // Hospeda o arquivo em uma API pública rápida de upload temporário/direto
+      const response = await fetch("https://envs.sh", {
+        method: "POST",
+        body: formData
+      });
 
-        await setDoc(doc(db, 'myinstants_sons', novoId), {
-          titulo: novoTitulo.trim(),
-          audioUrl: base64Audio,
-          cor: novaCor,
-          plays: 0,
-          criadoEm: Date.now()
-        });
+      if (!response.ok) {
+        throw new Error("Falha no servidor de upload.");
+      }
 
-        setModalNovoSom(false);
-        setNovoTitulo('');
-        setArquivoAudio(null);
-        setEnviando(false);
-      };
+      let audioUrl = await response.text();
+      audioUrl = audioUrl.trim();
 
-      reader.onerror = () => {
-        alert("Erro ao ler o arquivo local.");
-        setEnviando(false);
-      };
+      if (!audioUrl.startsWith("http")) {
+        throw new Error("URL de áudio inválida retornada.");
+      }
 
+      const novoId = Date.now().toString();
+      await setDoc(doc(db, 'myinstants_sons', novoId), {
+        titulo: novoTitulo.trim(),
+        audioUrl: audioUrl,
+        cor: novaCor,
+        plays: 0,
+        criadoEm: Date.now()
+      });
+
+      setModalNovoSom(false);
+      setNovoTitulo('');
+      setArquivoAudio(null);
     } catch (e) {
-      alert("Erro ao salvar som: " + e.message);
+      console.error(e);
+      alert("Erro ao enviar arquivo: " + e.message);
+    } finally {
       setEnviando(false);
     }
   };
@@ -262,7 +264,7 @@ function MainApp() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SELECIONAR ARQUIVO (.MP3 - MENOS DE 700KB)</label>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>SELECIONAR ARQUIVO (.MP3)</label>
               <input type="file" accept="audio/*" onChange={(e) => setArquivoAudio(e.target.files[0])} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', cursor: 'pointer' }} />
             </div>
 
@@ -273,8 +275,8 @@ function MainApp() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button disabled={enviando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
-              <button disabled={enviando} onClick={criarNovoSomLocal} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {enviando ? 'Salvando...' : 'Salvar'}
+              <button disabled={enviando} onClick={criarNovoSomComUploadSimples} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {enviando ? 'Enviando...' : 'Salvar'}
               </button>
             </div>
           </div>
