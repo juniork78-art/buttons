@@ -172,10 +172,8 @@ function MainApp() {
   const [termoBusca, setTermoBusca] = useState('');
   const [carregandoSons, setCarregandoSons] = useState(true);
   
-  // Estado para controlar qual som está aberto na página de detalhes (null = na home)
   const [somSelecionado, setSomSelecionado] = useState(null);
   
-  // Modais
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [modalLogin, setModalLogin] = useState(false);
   const [modalAprovacao, setModalAprovacao] = useState(false);
@@ -185,13 +183,11 @@ function MainApp() {
   const [novaCor, setNovaCor] = useState('#ff5722');
   const [enviando, setEnviando] = useState(false);
 
-  // Campos de Login do Admin
   const [emailInput, setEmailInput] = useState('');
   const [senhaInput, setSenhaInput] = useState('');
   const [erroLogin, setErroLogin] = useState('');
   const [carregandoLogin, setCarregandoLogin] = useState(false);
 
-  // Estados de Gravação de Áudio
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
   const mediaRecorderRef = useRef(null);
@@ -418,6 +414,33 @@ function MainApp() {
     }
   };
 
+  // Função para forçar o download direto do MP3 sem abrir aba de player
+  const baixarAudioDireto = async (audioUrl, titulo) => {
+    try {
+      // Se for link externo que bloqueia CORS, faz fetch do blob
+      const response = await fetch(audioUrl);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${titulo || 'audio'}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      // Fallback direto caso o link seja restrito por CORS
+      const link = document.createElement('a');
+      link.href = audioUrl;
+      link.download = `${titulo || 'audio'}.mp3`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
@@ -457,14 +480,11 @@ function MainApp() {
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
   const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
 
-  // ==========================================
-  // SE HOUVER UM SOM SELECIONADO, MOSTRA A PÁGINA DE DETALHES
-  // ==========================================
+  // PÁGINA DE DETALHES DO SOM
   if (somSelecionado) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         
-        {/* Botão para voltar para a home */}
         <button 
           onClick={() => setSomSelecionado(null)} 
           style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
@@ -472,12 +492,10 @@ function MainApp() {
           ← Voltar para Início
         </button>
 
-        {/* Título do Som (Nome do Grupo) */}
         <h1 style={{ fontSize: '38px', fontWeight: 'bold', margin: '10px 0 30px 0', textAlign: 'center' }}>
           {somSelecionado.titulo}
         </h1>
 
-        {/* Botão Esférico Grande */}
         <div style={{ marginBottom: '20px' }}>
           <button 
             className="instant-btn-large"
@@ -486,7 +504,6 @@ function MainApp() {
           />
         </div>
 
-        {/* Informações Abaixo do Botão */}
         <div style={{ fontSize: '15px', color: '#ccc', marginBottom: '8px' }}>
           Reproduções: <b>{somSelecionado.plays || 0}</b>
         </div>
@@ -494,7 +511,6 @@ function MainApp() {
           Adicionado em {new Date(somSelecionado.criadoEm || Date.now()).toLocaleDateString()}
         </div>
 
-        {/* Botões de Ação (Copiar Endereço e Baixar MP3) */}
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '600px' }}>
           <button 
             onClick={() => {
@@ -506,27 +522,18 @@ function MainApp() {
             🔗 Copiar endereço
           </button>
 
-          <a 
-            href={somSelecionado.audioUrl} 
-            download={`${somSelecionado.titulo}.mp3`}
-            target="_blank" 
-            rel="noreferrer"
-            style={{ textDecoration: 'none' }}
+          <button 
+            onClick={() => baixarAudioDireto(somSelecionado.audioUrl, somSelecionado.titulo)}
+            style={{ padding: '12px 24px', backgroundColor: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
           >
-            <button 
-              style={{ padding: '12px 24px', backgroundColor: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
-            >
-              💾 Baixar MP3
-            </button>
-          </a>
+            💾 Baixar MP3
+          </button>
         </div>
       </div>
     );
   }
 
-  // ==========================================
-  // TELA PRINCIPAL (HOME COM A GRADE DE BOTÕES)
-  // ==========================================
+  // TELA PRINCIPAL
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
@@ -589,7 +596,6 @@ function MainApp() {
                 </button>
               )}
 
-              {/* O Botão redondo agora apenas reproduz */}
               <button 
                 className="instant-btn"
                 onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
@@ -598,7 +604,6 @@ function MainApp() {
                 <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
               </button>
 
-              {/* NOME DO BOTÃO CLICÁVEL (Abre a página de detalhes) */}
               <div 
                 onClick={() => setSomSelecionado(item)}
                 title="Ver detalhes"
@@ -617,7 +622,7 @@ function MainApp() {
         </div>
       )}
 
-      {/* MODAL DE APROVAÇÃO (EXCLUSIVO ADMIN) */}
+      {/* MODAL DE APROVAÇÃO */}
       {modalAprovacao && isAdmin && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -652,7 +657,7 @@ function MainApp() {
         </div>
       )}
 
-      {/* MODAL DE LOGIN DO ADMIN */}
+      {/* MODAL DE LOGIN */}
       {modalLogin && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
