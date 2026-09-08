@@ -196,6 +196,13 @@ function MainApp() {
 
   const currentAudioRef = useRef(null);
 
+  // Lista de cores predefinidas para os botões
+  const coresDisponiveis = [
+    '#ff5722', '#e91e63', '#9c27b0', '#673ab7', 
+    '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
+    '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800'
+  ];
+
   useEffect(() => {
     try {
       if (!auth) return;
@@ -780,13 +787,25 @@ function MainApp() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input 
-                  type="color" 
-                  value={novaCor} 
-                  onChange={(e) => setNovaCor(e.target.value)} 
-                  style={{ width: '100%', height: '42px', border: '1px solid #444', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#121212', padding: '2px' }} 
-                />
+              
+              {/* Seletor de cores moderno em grade (sem input nativo do sistema) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+                {coresDisponiveis.map((corHex) => (
+                  <div 
+                    key={corHex}
+                    onClick={() => setNovaCor(corHex)}
+                    style={{
+                      width: '100%',
+                      height: '34px',
+                      backgroundColor: corHex,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      border: novaCor === corHex ? '3px solid #fff' : '2px solid transparent',
+                      boxSizing: 'border-box',
+                      transition: 'transform 0.1s ease'
+                    }}
+                  />
+                ))}
               </div>
             </div>
 
