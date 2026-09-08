@@ -382,7 +382,10 @@ function MainApp() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+        // Força a conversão do blob gravado para o tipo áudio/mp3 puro no celular
+        const rawBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob([rawBlob], { type: 'audio/mp3' });
+        
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -418,11 +421,13 @@ function MainApp() {
     try {
       const response = await fetch(audioUrl);
       const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      // Força o tipo do blob gerado para mp3 para o dispositivo móvel reconhecer no download
+      const mp3Blob = new Blob([blob], { type: 'audio/mp3' });
+      const blobUrl = window.URL.createObjectURL(mp3Blob);
       
       const link = document.createElement('a');
       link.href = blobUrl;
-      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm)$/i, '');
+      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
       link.download = `${nomeFormatado}.mp3`;
       
       document.body.appendChild(link);
@@ -432,7 +437,7 @@ function MainApp() {
     } catch (e) {
       const link = document.createElement('a');
       link.href = audioUrl;
-      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm)$/i, '');
+      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
       link.download = `${nomeFormatado}.mp3`;
       link.target = '_blank';
       document.body.appendChild(link);
