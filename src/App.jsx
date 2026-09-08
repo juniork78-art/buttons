@@ -155,9 +155,9 @@ function MainApp() {
   const [erroLogin, setErroLogin] = useState('');
   const [carregandoLogin, setCarregandoLogin] = useState(false);
 
-  // Estados de Gravação de Áudio
+  // Estados de Gravação de Áudio (Até 10s com opção de parar antes)
   const [gravando, setGravando] = useState(false);
-  const [tempoRestante, setTempoRestante] = useState(5);
+  const [tempoRestante, setTempoRestante] = useState(10);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -304,7 +304,20 @@ function MainApp() {
     } catch (e) {}
   };
 
-  const iniciarGravacao = async () => {
+  // Função para controlar início e parada manual/automática da gravação (até 10s)
+  const alternarGravacao = async () => {
+    if (gravando) {
+      // Se já estiver gravando, para manualmente antes dos 10 segundos
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+        mediaRecorderRef.current.stop();
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      setGravando(false);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
@@ -325,20 +338,22 @@ function MainApp() {
           setUrlAudio(reader.result);
         };
         stream.getTracks().forEach(track => track.stop());
+        setGravando(false);
       };
 
       mediaRecorder.start();
       setGravando(true);
-      setTempoRestante(5);
+      setTempoRestante(10);
 
-      let segundos = 5;
+      let segundos = 10;
       timerRef.current = setInterval(() => {
         segundos -= 1;
         setTempoRestante(segundos);
         if (segundos <= 0) {
           clearInterval(timerRef.current);
-          mediaRecorder.stop();
-          setGravando(false);
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+            mediaRecorderRef.current.stop();
+          }
         }
       }, 1000);
 
@@ -544,13 +559,13 @@ function MainApp() {
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DO ÁUDIO OU GRAVAÇÃO</label>
               <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3 ou grave ao lado" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
+              
               <button 
                 type="button" 
-                disabled={gravando}
-                onClick={iniciarGravacao}
+                onClick={alternarGravacao}
                 style={{ width: '100%', padding: '10px', background: gravando ? '#d32f2f' : '#2196f3', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
               >
-                {gravando ? `🎙️ Gravando... (${tempoRestante}s)` : '🎙️ Gravar Áudio (5s)'}
+                {gravando ? `⏹️ Parar Gravação (${tempoRestante}s)` : '🎙️ Gravar Áudio (Até 10s)'}
               </button>
             </div>
 
