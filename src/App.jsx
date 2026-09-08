@@ -414,7 +414,6 @@ function MainApp() {
     }
   };
 
-  // Função atualizada para garantir o download com extensão .mp3
   const baixarAudioDireto = async (audioUrl, titulo) => {
     try {
       const response = await fetch(audioUrl);
