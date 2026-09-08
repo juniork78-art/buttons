@@ -196,7 +196,6 @@ function MainApp() {
 
   const currentAudioRef = useRef(null);
 
-  // Lista de cores predefinidas para os botões
   const coresDisponiveis = [
     '#ff5722', '#e91e63', '#9c27b0', '#673ab7', 
     '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
@@ -349,8 +348,8 @@ function MainApp() {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert("O arquivo é muito grande. Escolha um arquivo MP3 de até 2MB.");
+      if (file.size > 900 * 1024) {
+        alert("O arquivo é muito grande. Escolha um arquivo de até 900KB para caber no banco de dados.");
         return;
       }
       const reader = new FileReader();
@@ -379,7 +378,14 @@ function MainApp() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      const mediaRecorder = new MediaRecorder(stream);
+      
+      // Usa codificação compacta suportada para evitar arquivos grandes
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+      if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options.mimeType = 'audio/ogg;codecs=opus';
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -388,27 +394,21 @@ function MainApp() {
         }
       };
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: options.mimeType });
         
-        try {
-          const arrayBuffer = await audioBlob.arrayBuffer();
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-          
-          const wavBlob = audioBufferToWav(audioBuffer);
-          const reader = new FileReader();
-          reader.readAsDataURL(wavBlob);
-          reader.onloadend = () => {
-            setUrlAudio(reader.result);
-          };
-        } catch (err) {
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = () => {
-            setUrlAudio(reader.result);
-          };
+        if (audioBlob.size > 900 * 1024) {
+          alert("A gravação ficou muito longa/pesada. Tente gravar por menos tempo.");
+          stream.getTracks().forEach(track => track.stop());
+          setGravando(false);
+          return;
         }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          setUrlAudio(reader.result);
+        };
 
         stream.getTracks().forEach(track => track.stop());
         setGravando(false);
@@ -436,58 +436,11 @@ function MainApp() {
     }
   };
 
-  const audioBufferToWav = (buffer) => {
-    const numOfChan = buffer.numberOfChannels;
-    const length = buffer.length * numOfChan * 2 + 44;
-    const out = new DataView(new ArrayBuffer(length));
-    let channels = [];
-    let sampleRate = buffer.sampleRate;
-    let offset = 0;
-    let pos = 0;
-
-    function writeString(str) {
-      for (let i = 0; i < str.length; i++) {
-        out.setUint8(pos++, str.charCodeAt(i));
-      }
-    }
-
-    writeString('RIFF');
-    out.setUint32(pos, length - 8, true); pos += 4;
-    writeString('WAVE');
-    writeString('fmt ');
-    out.setUint32(pos, 16, true); pos += 4;
-    out.setUint16(pos, 1, true); pos += 2;
-    out.setUint16(pos, numOfChan, true); pos += 2;
-    out.setUint32(pos, sampleRate, true); pos += 4;
-    out.setUint32(pos, sampleRate * 2 * numOfChan, true); pos += 4;
-    out.setUint16(pos, numOfChan * 2, true); pos += 2;
-    out.setUint16(pos, 16, true); pos += 2;
-    writeString('data');
-    out.setUint32(pos, length - pos - 4, true); pos += 4;
-
-    for (let i = 0; i < buffer.numberOfChannels; i++) {
-      channels.push(buffer.getChannelData(i));
-    }
-
-    while (offset < buffer.length) {
-      for (let i = 0; i < numOfChan; i++) {
-        let sample = Math.max(-1, Math.min(1, channels[i][offset]));
-        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-        out.setInt16(pos, sample, true);
-        pos += 2;
-      }
-      offset++;
-    }
-
-    return new Blob([out.buffer], { type: 'audio/mp3' });
-  };
-
   const baixarAudioDireto = async (audioUrl, titulo) => {
     try {
       const response = await fetch(audioUrl);
       const blob = await response.blob();
-      const mp3Blob = new Blob([blob], { type: 'audio/mp3' });
-      const blobUrl = window.URL.createObjectURL(mp3Blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = blobUrl;
@@ -513,6 +466,11 @@ function MainApp() {
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
+      return;
+    }
+
+    if (urlAudio.length > 900000) {
+      alert("O arquivo de áudio é muito grande para o banco de dados. Grave um áudio mais curto ou envie um arquivo menor.");
       return;
     }
 
@@ -788,7 +746,6 @@ function MainApp() {
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
               
-              {/* Seletor de cores moderno em grade (sem input nativo do sistema) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
                 {coresDisponiveis.map((corHex) => (
                   <div 
