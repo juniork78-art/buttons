@@ -14,7 +14,6 @@ import {
   updateDoc
 } from 'firebase/firestore';
 
-// Seu e-mail de administrador configurado corretamente
 const ADMIN_EMAIL = "admin@gmail.com";
 
 // Inserção dinâmica segura do Favicon
@@ -138,6 +137,7 @@ function MainApp() {
   const [sons, setSons] = useState([]);
   const [sonsPendentes, setSonsPendentes] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
+  const [carregandoSons, setCarregandoSons] = useState(true);
   
   // Modais
   const [modalNovoSom, setModalNovoSom] = useState(false);
@@ -178,7 +178,7 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  // Ouve os sons aprovados (públicos)
+  // Ouve os sons aprovados (públicos) e insere exemplos caso esteja vazio
   useEffect(() => {
     if (db) {
       try {
@@ -187,10 +187,27 @@ function MainApp() {
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-          setSons(lista);
+
+          if (lista.length === 0) {
+            // Adiciona um som padrão de teste para a tela não ficar vazia
+            const padrao = {
+              id: '1710000000000',
+              titulo: 'Airhorn',
+              audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3',
+              cor: '#e91e63',
+              plays: 0,
+              criadoEm: Date.now()
+            };
+            setDoc(doc(db, 'myinstants_sons', padrao.id), padrao);
+          } else {
+            setSons(lista);
+          }
+          setCarregandoSons(false);
         });
         return () => unsubscribe();
-      } catch (e) {}
+      } catch (e) {
+        setCarregandoSons(false);
+      }
     }
   }, []);
 
@@ -277,7 +294,7 @@ function MainApp() {
       setEmailInput('');
       setSenhaInput('');
     } catch (e) {
-      setErroLogin('E-mail ou senha incorretos. Verifique se a conta existe no Firebase Auth.');
+      setErroLogin('E-mail ou senha incorretos.');
     } finally {
       setCarregandoLogin(false);
     }
@@ -350,10 +367,14 @@ function MainApp() {
         criadoEm: Date.now()
       };
 
-      if (usuarioLogado === ADMIN_EMAIL) {
+      const isAdmin = usuarioLogado === ADMIN_EMAIL;
+
+      if (isAdmin) {
+        // Se for o admin, publica direto na página principal
         await setDoc(doc(db, 'myinstants_sons', novoId), { ...dadosSom, plays: 0 });
-        alert("Som adicionado com sucesso!");
+        alert("Som adicionado e publicado com sucesso!");
       } else {
+        // Se for visitante, vai para a aba de aprovação do admin
         await setDoc(doc(db, 'myinstants_pendentes', novoId), dadosSom);
         alert("Som enviado para análise do Administrador!");
       }
@@ -416,37 +437,41 @@ function MainApp() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
-        {sonsFiltrados.map((item) => (
-          <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
-            
-            {isAdmin && (
+      {carregandoSons ? (
+        <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>Carregando botões...</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
+          {sonsFiltrados.map((item) => (
+            <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
+              
+              {isAdmin && (
+                <button 
+                  onClick={() => excluirSom(item.id, item.titulo)}
+                  title="Excluir botão"
+                  style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
+                >
+                  ✕
+                </button>
+              )}
+
               <button 
-                onClick={() => excluirSom(item.id, item.titulo)}
-                title="Excluir botão"
-                style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
+                className="instant-btn"
+                onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
+                style={{ backgroundColor: item.cor || '#ff5722', marginTop: '6px' }}
               >
-                ✕
+                <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
               </button>
-            )}
 
-            <button 
-              className="instant-btn"
-              onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-              style={{ backgroundColor: item.cor || '#ff5722', marginTop: '6px' }}
-            >
-              <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
-            </button>
-
-            <div style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-              {item.titulo}
+              <div style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                {item.titulo}
+              </div>
+              <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
+                Reproduções: {item.plays || 0}
+              </div>
             </div>
-            <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
-              Reproduções: {item.plays || 0}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* MODAL DE APROVAÇÃO (EXCLUSIVO ADMIN) */}
       {modalAprovacao && isAdmin && (
