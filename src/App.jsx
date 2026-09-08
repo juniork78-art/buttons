@@ -414,26 +414,27 @@ function MainApp() {
     }
   };
 
-  // Função para forçar o download direto do MP3 sem abrir aba de player
+  // Função atualizada para garantir o download com extensão .mp3
   const baixarAudioDireto = async (audioUrl, titulo) => {
     try {
-      // Se for link externo que bloqueia CORS, faz fetch do blob
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = `${titulo || 'audio'}.mp3`;
+      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm)$/i, '');
+      link.download = `${nomeFormatado}.mp3`;
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (e) {
-      // Fallback direto caso o link seja restrito por CORS
       const link = document.createElement('a');
       link.href = audioUrl;
-      link.download = `${titulo || 'audio'}.mp3`;
+      const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm)$/i, '');
+      link.download = `${nomeFormatado}.mp3`;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
