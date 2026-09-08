@@ -381,16 +381,31 @@ function MainApp() {
         }
       };
 
-      mediaRecorder.onstop = () => {
-        // Força a conversão do blob gravado para o tipo áudio/mp3 puro no celular
-        const rawBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const audioBlob = new Blob([rawBlob], { type: 'audio/mp3' });
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          setUrlAudio(reader.result);
-        };
+        try {
+          // Converte o áudio gravado para WAV/MP3 nativo utilizando o AudioContext do navegador
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+          
+          // Cria um WAV puro (que é universalmente reconhecido e baixado perfeitamente sem problemas de codec)
+          const wavBlob = audioBufferToWav(audioBuffer);
+          const reader = new FileReader();
+          reader.readAsDataURL(wavBlob);
+          reader.onloadend = () => {
+            setUrlAudio(reader.result);
+          };
+        } catch (err) {
+          // Fallback caso o navegador bloqueie a decodificação
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            setUrlAudio(reader.result);
+          };
+        }
+
         stream.getTracks().forEach(track => track.stop());
         setGravando(false);
       };
@@ -417,11 +432,57 @@ function MainApp() {
     }
   };
 
+  // Função auxiliar para converter AudioBuffer em Blob WAV válido
+  const audioBufferToWav = (buffer) => {
+    const numOfChan = buffer.numberOfChannels;
+    const length = buffer.length * numOfChan * 2 + 44;
+    const out = new DataView(new ArrayBuffer(length));
+    let channels = [];
+    let sampleRate = buffer.sampleRate;
+    let offset = 0;
+    let pos = 0;
+
+    function writeString(str) {
+      for (let i = 0; i < str.length; i++) {
+        out.setUint8(pos++, str.charCodeAt(i));
+      }
+    }
+
+    writeString('RIFF');
+    out.setUint32(pos, length - 8, true); pos += 4;
+    writeString('WAVE');
+    writeString('fmt ');
+    out.setUint32(pos, 16, true); pos += 4;
+    out.setUint16(pos, 1, true); pos += 2;
+    out.setUint16(pos, numOfChan, true); pos += 2;
+    out.setUint32(pos, sampleRate, true); pos += 4;
+    out.setUint32(pos, sampleRate * 2 * numOfChan, true); pos += 4;
+    out.setUint16(pos, numOfChan * 2, true); pos += 2;
+    out.setUint16(pos, 16, true); pos += 2;
+    writeString('data');
+    out.setUint32(pos, length - pos - 4, true); pos += 4;
+
+    for (let i = 0; i < buffer.numberOfChannels; i++) {
+      channels.push(buffer.getChannelData(i));
+    }
+
+    while (offset < buffer.length) {
+      for (let i = 0; i < numOfChan; i++) {
+        let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+        sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+        out.setInt16(pos, sample, true);
+        pos += 2;
+      }
+      offset++;
+    }
+
+    return new Blob([out.buffer], { type: 'audio/mp3' });
+  };
+
   const baixarAudioDireto = async (audioUrl, titulo) => {
     try {
       const response = await fetch(audioUrl);
       const blob = await response.blob();
-      // Força o tipo do blob gerado para mp3 para o dispositivo móvel reconhecer no download
       const mp3Blob = new Blob([blob], { type: 'audio/mp3' });
       const blobUrl = window.URL.createObjectURL(mp3Blob);
       
@@ -727,7 +788,7 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSoms()} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
