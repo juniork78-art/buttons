@@ -50,7 +50,7 @@ style.innerHTML = `
     border-radius: 3px;
   }
 
-  /* Estilo do Botão Estilo MyInstants (Esférico / 3D com Brilho de Gel e Animação de Aperto) */
+  /* Estilo do Botão Esférico / 3D */
   .instant-btn {
     width: 105px;
     height: 105px;
@@ -95,6 +95,39 @@ style.innerHTML = `
       inset 0 -3px 6px rgba(0, 0, 0, 0.8), 
       0 2px 6px rgba(0, 0, 0, 0.4);
   }
+
+  /* Botão Grande da Página de Detalhes */
+  .instant-btn-large {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    box-shadow: 
+      inset 0 10px 20px rgba(255, 255, 255, 0.4), 
+      inset 0 -12px 20px rgba(0, 0, 0, 0.6), 
+      0 12px 24px rgba(0, 0, 0, 0.6);
+    transition: transform 0.08s ease;
+  }
+  .instant-btn-large::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 25px;
+    right: 25px;
+    height: 60px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.45), rgba(255,255,255,0.05));
+    border-radius: 50% 50% 40% 40%;
+    pointer-events: none;
+  }
+  .instant-btn-large:active {
+    transform: scale(0.94) translateY(4px);
+  }
 `;
 document.head.appendChild(style);
 
@@ -138,6 +171,9 @@ function MainApp() {
   const [sonsPendentes, setSonsPendentes] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [carregandoSons, setCarregandoSons] = useState(true);
+  
+  // Estado para controlar qual som está aberto na página de detalhes (null = na home)
+  const [somSelecionado, setSomSelecionado] = useState(null);
   
   // Modais
   const [modalNovoSom, setModalNovoSom] = useState(false);
@@ -249,6 +285,9 @@ function MainApp() {
     if (window.confirm(`Deseja realmente excluir o botão "${titulo}"?`)) {
       try {
         await deleteDoc(doc(db, 'myinstants_sons', id));
+        if (somSelecionado && somSelecionado.id === id) {
+          setSomSelecionado(null);
+        }
       } catch (e) {
         alert("Erro ao excluir som: " + e.message);
       }
@@ -304,11 +343,10 @@ function MainApp() {
     } catch (e) {}
   };
 
-  // Manipular upload de arquivo MP3 do computador
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // Limite de 2MB para caber bem no Firestore
+      if (file.size > 2 * 1024 * 1024) {
         alert("O arquivo é muito grande. Escolha um arquivo MP3 de até 2MB.");
         return;
       }
@@ -317,7 +355,6 @@ function MainApp() {
       reader.onloadend = () => {
         setUrlAudio(reader.result);
         if (!novoTitulo) {
-          // Preenche o título automaticamente com o nome do arquivo sem extensão
           setNovoTitulo(file.name.replace(/\.[^/.]+$/, ""));
         }
       };
@@ -420,6 +457,76 @@ function MainApp() {
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
   const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
 
+  // ==========================================
+  // SE HOUVER UM SOM SELECIONADO, MOSTRA A PÁGINA DE DETALHES
+  // ==========================================
+  if (somSelecionado) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        
+        {/* Botão para voltar para a home */}
+        <button 
+          onClick={() => setSomSelecionado(null)} 
+          style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
+        >
+          ← Voltar para Início
+        </button>
+
+        {/* Título do Som (Nome do Grupo) */}
+        <h1 style={{ fontSize: '38px', fontWeight: 'bold', margin: '10px 0 30px 0', textAlign: 'center' }}>
+          {somSelecionado.titulo}
+        </h1>
+
+        {/* Botão Esférico Grande */}
+        <div style={{ marginBottom: '20px' }}>
+          <button 
+            className="instant-btn-large"
+            onClick={() => reproduzirSom(somSelecionado.id, somSelecionado.audioUrl, somSelecionado.plays)}
+            style={{ backgroundColor: somSelecionado.cor || '#ff5722' }}
+          />
+        </div>
+
+        {/* Informações Abaixo do Botão */}
+        <div style={{ fontSize: '15px', color: '#ccc', marginBottom: '8px' }}>
+          Reproduções: <b>{somSelecionado.plays || 0}</b>
+        </div>
+        <div style={{ fontSize: '13px', color: '#888', marginBottom: '25px' }}>
+          Adicionado em {new Date(somSelecionado.criadoEm || Date.now()).toLocaleDateString()}
+        </div>
+
+        {/* Botões de Ação (Copiar Endereço e Baixar MP3) */}
+        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '600px' }}>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(somSelecionado.audioUrl);
+              alert("Endereço do áudio copiado para a área de transferência!");
+            }}
+            style={{ padding: '12px 24px', backgroundColor: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+          >
+            🔗 Copiar endereço
+          </button>
+
+          <a 
+            href={somSelecionado.audioUrl} 
+            download={`${somSelecionado.titulo}.mp3`}
+            target="_blank" 
+            rel="noreferrer"
+            style={{ textDecoration: 'none' }}
+          >
+            <button 
+              style={{ padding: '12px 24px', backgroundColor: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
+            >
+              💾 Baixar MP3
+            </button>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================
+  // TELA PRINCIPAL (HOME COM A GRADE DE BOTÕES)
+  // ==========================================
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
@@ -482,6 +589,7 @@ function MainApp() {
                 </button>
               )}
 
+              {/* O Botão redondo agora apenas reproduz */}
               <button 
                 className="instant-btn"
                 onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
@@ -490,9 +598,17 @@ function MainApp() {
                 <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
               </button>
 
-              <div style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+              {/* NOME DO BOTÃO CLICÁVEL (Abre a página de detalhes) */}
+              <div 
+                onClick={() => setSomSelecionado(item)}
+                title="Ver detalhes"
+                style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', cursor: 'pointer', color: '#fff' }}
+                onMouseOver={(e) => e.target.style.color = '#ff5722'}
+                onMouseOut={(e) => e.target.style.color = '#fff'}
+              >
                 {item.titulo}
               </div>
+
               <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
                 Reproduções: {item.plays || 0}
               </div>
@@ -580,13 +696,11 @@ function MainApp() {
               <input type="text" value={urlAudio.startsWith('data:') ? '[Arquivo ou Gravação Carregada]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
               <div style={{ display: 'flex', gap: '8px' }}>
-                {/* Botão de Upload de Arquivo MP3 */}
                 <label style={{ flex: 1, padding: '10px', background: '#4caf50', color: '#fff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', textAlign: 'center' }}>
                   📁 Enviar MP3
                   <input type="file" accept="audio/mp3, audio/*" onChange={handleFileUpload} style={{ display: 'none' }} />
                 </label>
 
-                {/* Botão de Gravar Áudio */}
                 <button 
                   type="button" 
                   onClick={alternarGravacao}
