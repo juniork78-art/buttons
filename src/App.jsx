@@ -155,7 +155,7 @@ function MainApp() {
   const [erroLogin, setErroLogin] = useState('');
   const [carregandoLogin, setCarregandoLogin] = useState(false);
 
-  // Estados de Gravação de Áudio (Até 10s com opção de parar antes)
+  // Estados de Gravação de Áudio
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
   const mediaRecorderRef = useRef(null);
@@ -304,10 +304,28 @@ function MainApp() {
     } catch (e) {}
   };
 
-  // Função para controlar início e parada manual/automática da gravação (até 10s)
+  // Manipular upload de arquivo MP3 do computador
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // Limite de 2MB para caber bem no Firestore
+        alert("O arquivo é muito grande. Escolha um arquivo MP3 de até 2MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        setUrlAudio(reader.result);
+        if (!novoTitulo) {
+          // Preenche o título automaticamente com o nome do arquivo sem extensão
+          setNovoTitulo(file.name.replace(/\.[^/.]+$/, ""));
+        }
+      };
+    }
+  };
+
   const alternarGravacao = async () => {
     if (gravando) {
-      // Se já estiver gravando, para manualmente antes dos 10 segundos
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
         mediaRecorderRef.current.stop();
       }
@@ -365,7 +383,7 @@ function MainApp() {
 
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
-      alert("Preencha o título e insira uma URL ou grave um áudio.");
+      alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
       return;
     }
 
@@ -557,16 +575,26 @@ function MainApp() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>URL DO ÁUDIO OU GRAVAÇÃO</label>
-              <input type="text" value={urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3 ou grave ao lado" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
               
-              <button 
-                type="button" 
-                onClick={alternarGravacao}
-                style={{ width: '100%', padding: '10px', background: gravando ? '#d32f2f' : '#2196f3', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
-              >
-                {gravando ? `⏹️ Parar Gravação (${tempoRestante}s)` : '🎙️ Gravar Áudio (Até 10s)'}
-              </button>
+              <input type="text" value={urlAudio.startsWith('data:') ? '[Arquivo ou Gravação Carregada]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* Botão de Upload de Arquivo MP3 */}
+                <label style={{ flex: 1, padding: '10px', background: '#4caf50', color: '#fff', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', textAlign: 'center' }}>
+                  📁 Enviar MP3
+                  <input type="file" accept="audio/mp3, audio/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+                </label>
+
+                {/* Botão de Gravar Áudio */}
+                <button 
+                  type="button" 
+                  onClick={alternarGravacao}
+                  style={{ flex: 1, padding: '10px', background: gravando ? '#d32f2f' : '#2196f3', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  {gravando ? `⏹️ Parar (${tempoRestante}s)` : '🎙️ Gravar (10s)'}
+                </button>
+              </div>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
