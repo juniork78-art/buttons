@@ -201,7 +201,6 @@ function MainApp() {
     '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800'
   ];
 
-  // Função auxiliar para calcular se a cor é clara e retornar preto ou branco para o texto
   const corTextoBotao = (hexColor) => {
     if (!hexColor) return '#fff';
     let c = hexColor.replace('#', '');
@@ -289,12 +288,18 @@ function MainApp() {
       audio.play().catch(err => console.log("Erro ao tocar áudio:", err));
 
       const novoPlays = (playsAtuais || 0) + 1;
-      await updateDoc(doc(db, 'myinstants_sons', id), { plays: novoPlays });
       
-      // Atualiza também o estado local do som selecionado, se estiver na página de detalhes
+      // Atualiza imediatamente na lista local para refletir na tela na hora
+      setSons(prevSons => 
+        prevSons.map(s => s.id === id ? { ...s, plays: novoPlays } : s)
+      );
+
       if (somSelecionado && somSelecionado.id === id) {
         setSomSelecionado(prev => ({ ...prev, plays: novoPlays }));
       }
+
+      // Atualiza no Firestore em segundo plano
+      await updateDoc(doc(db, 'myinstants_sons', id), { plays: novoPlays });
     } catch (e) {
       console.error(e);
     }
