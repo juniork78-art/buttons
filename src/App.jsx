@@ -385,12 +385,10 @@ function MainApp() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
         try {
-          // Converte o áudio gravado para WAV/MP3 nativo utilizando o AudioContext do navegador
           const arrayBuffer = await audioBlob.arrayBuffer();
           const audioContext = new (window.AudioContext || window.webkitAudioContext)();
           const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
           
-          // Cria um WAV puro (que é universalmente reconhecido e baixado perfeitamente sem problemas de codec)
           const wavBlob = audioBufferToWav(audioBuffer);
           const reader = new FileReader();
           reader.readAsDataURL(wavBlob);
@@ -398,7 +396,6 @@ function MainApp() {
             setUrlAudio(reader.result);
           };
         } catch (err) {
-          // Fallback caso o navegador bloqueie a decodificação
           const reader = new FileReader();
           reader.readAsDataURL(audioBlob);
           reader.onloadend = () => {
@@ -432,7 +429,6 @@ function MainApp() {
     }
   };
 
-  // Função auxiliar para converter AudioBuffer em Blob WAV válido
   const audioBufferToWav = (buffer) => {
     const numOfChan = buffer.numberOfChannels;
     const length = buffer.length * numOfChan * 2 + 44;
@@ -788,7 +784,7 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando || gravando} onClick={() => setModalNovoSoms()} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
