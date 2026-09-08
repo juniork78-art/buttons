@@ -780,7 +780,14 @@ function MainApp() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
-              <input type="color" value={novaCor} onChange={(e) => setNovaCor(e.target.value)} style={{ width: '100%', height: '40px', border: 'none', borderRadius: '6px', cursor: 'pointer', background: 'transparent' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input 
+                  type="color" 
+                  value={novaCor} 
+                  onChange={(e) => setNovaCor(e.target.value)} 
+                  style={{ width: '100%', height: '42px', border: '1px solid #444', borderRadius: '6px', cursor: 'pointer', backgroundColor: '#121212', padding: '2px' }} 
+                />
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
