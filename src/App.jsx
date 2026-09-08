@@ -65,7 +65,6 @@ style.innerHTML = `
     padding: 12px;
     font-size: 13px;
     font-weight: bold;
-    color: #fff;
     word-break: break-word;
     outline: none;
     user-select: none;
@@ -197,10 +196,23 @@ function MainApp() {
   const currentAudioRef = useRef(null);
 
   const coresDisponiveis = [
-    '#ff5722', '#e91e63', '#9c27b0', '#673ab7', 
+    '#ffffff', '#ff5722', '#e91e63', '#9c27b0', '#673ab7', 
     '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
     '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800'
   ];
+
+  // Função auxiliar para calcular se a cor é clara e retornar preto ou branco para o texto
+  const corTextoBotao = (hexColor) => {
+    if (!hexColor) return '#fff';
+    let c = hexColor.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 140 ? '#000000' : '#ffffff';
+  };
 
   useEffect(() => {
     try {
@@ -278,6 +290,11 @@ function MainApp() {
 
       const novoPlays = (playsAtuais || 0) + 1;
       await updateDoc(doc(db, 'myinstants_sons', id), { plays: novoPlays });
+      
+      // Atualiza também o estado local do som selecionado, se estiver na página de detalhes
+      if (somSelecionado && somSelecionado.id === id) {
+        setSomSelecionado(prev => ({ ...prev, plays: novoPlays }));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -379,7 +396,6 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
       
-      // Usa codificação compacta suportada para evitar arquivos grandes
       const options = { mimeType: 'audio/webm;codecs=opus' };
       if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         options.mimeType = 'audio/ogg;codecs=opus';
@@ -527,8 +543,13 @@ function MainApp() {
           <button 
             className="instant-btn-large"
             onClick={() => reproduzirSom(somSelecionado.id, somSelecionado.audioUrl, somSelecionado.plays)}
-            style={{ backgroundColor: somSelecionado.cor || '#ff5722' }}
-          />
+            style={{ 
+              backgroundColor: somSelecionado.cor || '#ff5722',
+              color: corTextoBotao(somSelecionado.cor || '#ff5722')
+            }}
+          >
+            <span style={{ position: 'relative', zIndex: 1, fontSize: '18px', fontWeight: 'bold' }}>{somSelecionado.titulo}</span>
+          </button>
         </div>
 
         <div style={{ fontSize: '15px', color: '#ccc', marginBottom: '8px' }}>
@@ -626,7 +647,11 @@ function MainApp() {
               <button 
                 className="instant-btn"
                 onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-                style={{ backgroundColor: item.cor || '#ff5722', marginTop: '6px' }}
+                style={{ 
+                  backgroundColor: item.cor || '#ff5722', 
+                  color: corTextoBotao(item.cor || '#ff5722'),
+                  marginTop: '6px' 
+                }}
               >
                 <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
               </button>
@@ -757,7 +782,7 @@ function MainApp() {
                       backgroundColor: corHex,
                       borderRadius: '6px',
                       cursor: 'pointer',
-                      border: novaCor === corHex ? '3px solid #fff' : '2px solid transparent',
+                      border: novaCor === corHex ? '3px solid #ff5722' : '2px solid #333',
                       boxSizing: 'border-box',
                       transition: 'transform 0.1s ease'
                     }}
