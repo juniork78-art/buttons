@@ -16,12 +16,12 @@ import {
 
 const ADMIN_EMAIL = "admin@gmail.com";
 
-// Inserção dinâmica segura do Favicon
+// Inserção dinâmica segura do Favicon com as iniciais BL
 try {
   const faviconSvg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
       <rect width="64" height="64" rx="14" fill="#ff5722"/>
-      <text x="32" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="46" font-weight="900" fill="#ffffff" text-anchor="middle">⚡</text>
+      <text x="32" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="34" font-weight="900" fill="#ffffff" text-anchor="middle">BL</text>
     </svg>`;
   const link = document.createElement('link');
   link.rel = 'icon';
@@ -178,7 +178,6 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  // Ouve os sons aprovados (públicos) e insere exemplos caso esteja vazio
   useEffect(() => {
     if (db) {
       try {
@@ -189,7 +188,6 @@ function MainApp() {
           });
 
           if (lista.length === 0) {
-            // Adiciona um som padrão de teste para a tela não ficar vazia
             const padrao = {
               id: '1710000000000',
               titulo: 'Airhorn',
@@ -211,7 +209,6 @@ function MainApp() {
     }
   }, []);
 
-  // Ouve os sons pendentes (visível apenas para o admin)
   useEffect(() => {
     if (db && usuarioLogado === ADMIN_EMAIL) {
       try {
@@ -370,11 +367,9 @@ function MainApp() {
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
 
       if (isAdmin) {
-        // Se for o admin, publica direto na página principal
         await setDoc(doc(db, 'myinstants_sons', novoId), { ...dadosSom, plays: 0 });
         alert("Som adicionado e publicado com sucesso!");
       } else {
-        // Se for visitante, vai para a aba de aprovação do admin
         await setDoc(doc(db, 'myinstants_pendentes', novoId), dadosSom);
         alert("Som enviado para análise do Administrador!");
       }
@@ -417,7 +412,7 @@ function MainApp() {
           )}
         </div>
 
-        <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>MyInstants</h1>
+        <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>Botões loucos</h1>
         <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
 
