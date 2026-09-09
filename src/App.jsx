@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { auth, db, storage } from './firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -367,8 +366,8 @@ function MainApp() {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) { // Limite de 15MB para arquivos no Storage
-        alert("O arquivo é muito grande. Escolha um arquivo de até 15MB.");
+      if (file.size > 800 * 1024) {
+        alert("O arquivo é muito grande. Escolha um arquivo MP3 de até 800KB para caber no banco gratuito.");
         return;
       }
       const reader = new FileReader();
@@ -398,7 +397,7 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
       
-      const options = { mimeType: 'audio/webm;codecs=opus' };
+      const options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32000 };
       if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
         options.mimeType = 'audio/ogg;codecs=opus';
       }
@@ -414,6 +413,13 @@ function MainApp() {
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: options.mimeType });
+        
+        if (audioBlob.size > 800 * 1024) {
+          alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
+          stream.getTracks().forEach(track => track.stop());
+          setGravando(false);
+          return;
+        }
 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
@@ -474,33 +480,23 @@ function MainApp() {
     }
   };
 
-  // Envio inteligente usando Firebase Storage (Evita estourar o limite de 1MB do banco)
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
       return;
     }
 
+    if (urlAudio.length > 900000) {
+      alert("O áudio está muito grande para o banco de dados. Grave por menos tempo ou envie um arquivo menor.");
+      return;
+    }
+
     setEnviando(true);
     try {
-      let audioFinalUrl = urlAudio;
-
-      // Se o áudio veio de arquivo local ou gravação, envia para o Storage
-      if (urlAudio.startsWith('data:')) {
-        const response = await fetch(urlAudio);
-        const blob = await response.blob();
-        
-        const nomeArquivo = `audios/${Date.now()}_${Math.random().toString(36).substring(2)}.mp3`;
-        const storageRef = ref(storage, nomeArquivo);
-
-        const snapshot = await uploadBytes(storageRef, blob);
-        audioFinalUrl = await getDownloadURL(snapshot.ref);
-      }
-
       const novoId = Date.now().toString();
       const dadosSom = {
         titulo: novoTitulo.trim(),
-        audioUrl: audioFinalUrl,
+        audioUrl: urlAudio.trim(),
         cor: novaCor,
         criadoEm: Date.now()
       };
@@ -792,7 +788,7 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>CancelarD</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
