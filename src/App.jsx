@@ -234,7 +234,6 @@ function MainApp() {
           });
 
           if (lista.length === 0) {
-            // Insere um botão padrão automaticamente se o banco estiver vazio para destravar
             const padrao = {
               id: '1710000000000',
               titulo: 'Airhorn',
@@ -735,7 +734,7 @@ function MainApp() {
       )}
 
       {modalNovoSom && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '9999', padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
             
@@ -788,7 +787,8 @@ function MainApp() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px'>>() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
