@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { auth, db } from './firebase';
+import { auth, db, storage } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
   signInWithEmailAndPassword, 
   signOut, 
@@ -50,7 +51,6 @@ style.innerHTML = `
     border-radius: 3px;
   }
 
-  /* Estilo do Botão Esférico / 3D */
   .instant-btn {
     width: 105px;
     height: 105px;
@@ -95,7 +95,6 @@ style.innerHTML = `
       0 2px 6px rgba(0, 0, 0, 0.4);
   }
 
-  /* Botão Grande da Página de Detalhes */
   .instant-btn-large {
     width: 180px;
     height: 180px;
@@ -289,7 +288,6 @@ function MainApp() {
 
       const novoPlays = (playsAtuais || 0) + 1;
       
-      // Atualiza imediatamente na lista local para refletir na tela na hora
       setSons(prevSons => 
         prevSons.map(s => s.id === id ? { ...s, plays: novoPlays } : s)
       );
@@ -298,7 +296,6 @@ function MainApp() {
         setSomSelecionado(prev => ({ ...prev, plays: novoPlays }));
       }
 
-      // Atualiza no Firestore em segundo plano
       await updateDoc(doc(db, 'myinstants_sons', id), { plays: novoPlays });
     } catch (e) {
       console.error(e);
@@ -370,8 +367,8 @@ function MainApp() {
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 900 * 1024) {
-        alert("O arquivo é muito grande. Escolha um arquivo de até 900KB para caber no banco de dados.");
+      if (file.size > 15 * 1024 * 1024) { // Limite de 15MB para arquivos no Storage
+        alert("O arquivo é muito grande. Escolha um arquivo de até 15MB.");
         return;
       }
       const reader = new FileReader();
@@ -417,13 +414,6 @@ function MainApp() {
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: options.mimeType });
-        
-        if (audioBlob.size > 900 * 1024) {
-          alert("A gravação ficou muito longa/pesada. Tente gravar por menos tempo.");
-          stream.getTracks().forEach(track => track.stop());
-          setGravando(false);
-          return;
-        }
 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
@@ -484,23 +474,33 @@ function MainApp() {
     }
   };
 
+  // Envio inteligente usando Firebase Storage (Evita estourar o limite de 1MB do banco)
   const enviarNovoSom = async () => {
     if (!novoTitulo.trim() || !urlAudio.trim()) {
       alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
       return;
     }
 
-    if (urlAudio.length > 900000) {
-      alert("O arquivo de áudio é muito grande para o banco de dados. Grave um áudio mais curto ou envie um arquivo menor.");
-      return;
-    }
-
     setEnviando(true);
     try {
+      let audioFinalUrl = urlAudio;
+
+      // Se o áudio veio de arquivo local ou gravação, envia para o Storage
+      if (urlAudio.startsWith('data:')) {
+        const response = await fetch(urlAudio);
+        const blob = await response.blob();
+        
+        const nomeArquivo = `audios/${Date.now()}_${Math.random().toString(36).substring(2)}.mp3`;
+        const storageRef = ref(storage, nomeArquivo);
+
+        const snapshot = await uploadBytes(storageRef, blob);
+        audioFinalUrl = await getDownloadURL(snapshot.ref);
+      }
+
       const novoId = Date.now().toString();
       const dadosSom = {
         titulo: novoTitulo.trim(),
-        audioUrl: urlAudio.trim(),
+        audioUrl: audioFinalUrl,
         cor: novaCor,
         criadoEm: Date.now()
       };
@@ -528,7 +528,6 @@ function MainApp() {
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
   const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
 
-  // PÁGINA DE DETALHES DO SOM
   if (somSelecionado) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -586,7 +585,6 @@ function MainApp() {
     );
   }
 
-  // TELA PRINCIPAL
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
@@ -679,7 +677,6 @@ function MainApp() {
         </div>
       )}
 
-      {/* MODAL DE APROVAÇÃO */}
       {modalAprovacao && isAdmin && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -714,7 +711,6 @@ function MainApp() {
         </div>
       )}
 
-      {/* MODAL DE LOGIN */}
       {modalLogin && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
@@ -741,7 +737,6 @@ function MainApp() {
         </div>
       )}
 
-      {/* MODAL DE ADICIONAR SOM */}
       {modalNovoSom && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
