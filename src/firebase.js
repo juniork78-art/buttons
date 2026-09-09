@@ -5,13 +5,13 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage"; // Importado aqui
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDmWcZtrfQK2aXDzBdCtcIuPGmHkfpfyrg",
-  authDomain: "botoes-1787c.firebaseapp.com",
-  projectId: "botoes-1787c",
-  storageBucket: "botoes-1787c.firebasestorage.app",
-  messagingSenderId: "233788862144",
-  appId: "1:233788862144:web:9064d961ace070823dc725",
-  measurementId: "G-4MX2B6VX9S"
+  apiKey: "AIzaSyDX_vetgmtyxHX2wpzaqX0y09NasJtyUXg",
+  authDomain: "botoes-e5f81.firebaseapp.com",
+  projectId: "botoes-e5f81",
+  storageBucket: "botoes-e5f81.firebasestorage.app",
+  messagingSenderId: "213114513073",
+  appId: "1:213114513073:web:599ebfd3b30e2e4656a490",
+  measurementId: "G-1BZT2ZLP00"
 };
 
 const app = initializeApp(firebaseConfig);
