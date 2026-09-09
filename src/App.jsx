@@ -479,8 +479,13 @@ function MainApp() {
   };
 
   const enviarNovoSom = async () => {
-    if (!novoTitulo.trim() || !urlAudio.trim()) {
-      alert("Preencha o título e insira uma URL, grave ou envie um arquivo MP3.");
+    if (!novoTitulo.trim()) {
+      alert("Preencha o título do som.");
+      return;
+    }
+
+    if (!urlAudio || !urlAudio.trim()) {
+      alert("Nenhum áudio foi gravado ou selecionado. Por favor, grave ou envie um arquivo MP3.");
       return;
     }
 
@@ -513,7 +518,8 @@ function MainApp() {
       setNovoTitulo('');
       setUrlAudio('');
     } catch (e) {
-      alert("Erro ao enviar som: " + e.message);
+      console.error("Erro detalhado ao salvar no Firestore:", e);
+      alert("Erro ao enviar som: " + (e.message || "Erro desconhecido"));
     } finally {
       setEnviando(false);
     }
