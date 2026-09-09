@@ -16,7 +16,6 @@ import {
 
 const ADMIN_EMAIL = "admin@gmail.com";
 
-// Inserção dinâmica segura do Favicon com as iniciais BL
 try {
   const faviconSvg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -233,20 +232,10 @@ function MainApp() {
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-
-          if (lista.length === 0) {
-            const padrao = {
-              id: '1710000000000',
-              titulo: 'Airhorn',
-              audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3',
-              cor: '#e91e63',
-              plays: 0,
-              criadoEm: Date.now()
-            };
-            setDoc(doc(db, 'myinstants_sons', padrao.id), padrao);
-          } else {
-            setSons(lista);
-          }
+          setSons(lista);
+          setCarregandoSons(false);
+        }, (error) => {
+          console.error("Erro ao carregar sons:", error);
           setCarregandoSons(false);
         });
         return () => unsubscribe();
@@ -257,7 +246,7 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
-    if (db && usuarioLogado === ADMIN_EMAIL) {
+    if (db) {
       try {
         const unsubscribe = onSnapshot(collection(db, 'myinstants_pendentes'), (snapshot) => {
           const lista = [];
@@ -268,10 +257,8 @@ function MainApp() {
         });
         return () => unsubscribe();
       } catch (e) {}
-    } else {
-      setSonsPendentes([]);
     }
-  }, [usuarioLogado]);
+  }, []);
 
   const reproduzirSom = async (id, audioUrl, playsAtuais) => {
     try {
@@ -367,7 +354,7 @@ function MainApp() {
     const file = e.target.files[0];
     if (file) {
       if (file.size > 800 * 1024) {
-        alert("O arquivo é muito grande. Escolha um arquivo MP3 de até 800KB para caber no banco gratuito.");
+        alert("O arquivo é muito grande. Escolha um arquivo de até 800KB.");
         return;
       }
       const reader = new FileReader();
@@ -487,7 +474,7 @@ function MainApp() {
     }
 
     if (urlAudio.length > 900000) {
-      alert("O áudio está muito grande para o banco de dados. Grave por menos tempo ou envie um arquivo menor.");
+      alert("O áudio está muito grande. Grave por menos tempo.");
       return;
     }
 
@@ -628,6 +615,10 @@ function MainApp() {
 
       {carregandoSons ? (
         <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>Carregando botões...</div>
+      ) : sons.length === 0 ? (
+        <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>
+          Nenhum botão cadastrado ainda. Clique em "+ Adicionar Som" para começar!
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
@@ -788,7 +779,7 @@ function MainApp() {
             </div>
 
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>CancelarD</button>
+              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
