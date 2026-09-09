@@ -232,7 +232,21 @@ function MainApp() {
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-          setSons(lista);
+
+          if (lista.length === 0) {
+            // Insere um botão padrão automaticamente se o banco estiver vazio para destravar
+            const padrao = {
+              id: '1710000000000',
+              titulo: 'Airhorn',
+              audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3',
+              cor: '#e91e63',
+              plays: 0,
+              criadoEm: Date.now()
+            };
+            setDoc(doc(db, 'myinstants_sons', padrao.id), padrao).catch(() => {});
+          } else {
+            setSons(lista);
+          }
           setCarregandoSons(false);
         }, (error) => {
           console.error("Erro ao carregar sons:", error);
@@ -615,10 +629,6 @@ function MainApp() {
 
       {carregandoSons ? (
         <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>Carregando botões...</div>
-      ) : sons.length === 0 ? (
-        <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>
-          Nenhum botão cadastrado ainda. Clique em "+ Adicionar Som" para começar!
-        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
@@ -778,8 +788,7 @@ function MainApp() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button disabled={enviando || gravando} onClick={() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
+            <div style={{ display: 'flex', gap: '10px'>>() => setModalNovoSom(false)} style={{ flex: 1, padding: '10px', background: '#2c2c2c', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>Cancelar</button>
               <button disabled={enviando || gravando} onClick={enviarNovoSom} style={{ flex: 1, padding: '10px', background: '#ff5722', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : (isAdmin ? 'Salvar' : 'Enviar')}
               </button>
