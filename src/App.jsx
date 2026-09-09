@@ -225,34 +225,32 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
+    // Timeout de segurança de 4 segundos caso o banco demore a responder
+    const timerTimeout = setTimeout(() => {
+      setCarregandoSons(false);
+    }, 4000);
+
     if (db) {
       try {
         const unsubscribe = onSnapshot(collection(db, 'myinstants_sons'), (snapshot) => {
+          clearTimeout(timerTimeout);
           const lista = [];
           snapshot.forEach((docSnap) => {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
-
-          if (lista.length === 0) {
-            const padrao = {
-              id: '1710000000000',
-              titulo: 'Airhorn',
-              audioUrl: 'https://www.myinstants.com/media/sounds/mlg-airhorn.mp3',
-              cor: '#e91e63',
-              plays: 0,
-              criadoEm: Date.now()
-            };
-            setDoc(doc(db, 'myinstants_sons', padrao.id), padrao).catch(() => {});
-          } else {
-            setSons(lista);
-          }
+          setSons(lista);
           setCarregandoSons(false);
         }, (error) => {
+          clearTimeout(timerTimeout);
           console.error("Erro ao carregar sons:", error);
           setCarregandoSons(false);
         });
-        return () => unsubscribe();
+        return () => {
+          clearTimeout(timerTimeout);
+          unsubscribe();
+        };
       } catch (e) {
+        clearTimeout(timerTimeout);
         setCarregandoSons(false);
       }
     }
@@ -628,6 +626,10 @@ function MainApp() {
 
       {carregandoSons ? (
         <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>Carregando botões...</div>
+      ) : sons.length === 0 ? (
+        <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>
+          Nenhum botão cadastrado ainda. Clique em "+ Adicionar Som" para começar!
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
@@ -734,7 +736,7 @@ function MainApp() {
       )}
 
       {modalNovoSom && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: '9999', padding: '15px', boxSizing: 'border-box' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
             
