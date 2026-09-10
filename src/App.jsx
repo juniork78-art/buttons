@@ -225,7 +225,6 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
-    // Timeout de segurança de 4 segundos caso o banco demore a responder
     const timerTimeout = setTimeout(() => {
       setCarregandoSons(false);
     }, 4000);
@@ -490,7 +489,7 @@ function MainApp() {
     }
 
     if (urlAudio.length > 900000) {
-      alert("O áudio está muito grande. Grave por menos tempo.");
+      alert("O áudio está muito grande. O limite para o banco gratuito é de 800KB.");
       return;
     }
 
@@ -519,7 +518,7 @@ function MainApp() {
       setUrlAudio('');
     } catch (e) {
       console.error("Erro detalhado ao salvar no Firestore:", e);
-      alert("Erro ao enviar som: " + (e.message || "Erro desconhecido"));
+      alert("Erro ao enviar som: " + (e.message || "Verifique as regras do Firestore no painel do Firebase."));
     } finally {
       setEnviando(false);
     }
