@@ -60,11 +60,6 @@ style.innerHTML = `
     display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
-    padding: 12px;
-    font-size: 13px;
-    font-weight: bold;
-    word-break: break-word;
     outline: none;
     user-select: none;
     box-shadow: 
@@ -197,7 +192,7 @@ function MainApp() {
     '#ffffff', '#000000', '#222222', '#ff5722', '#e91e63', '#9c27b0', 
     '#673ab7', '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
     '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#795548',
-    '#607d8b', '#e91e63', '#ff4081', '#00e676'
+    '#607d8b', '#ff4081', '#00e676'
   ];
 
   const corTextoBotao = (hexColor) => {
@@ -512,7 +507,6 @@ function MainApp() {
         dadosSom.plays = 0;
       }
 
-      // Usa addDoc para gerar ID automático e evitar qualquer trava de rota do Firestore
       await addDoc(collection(db, nomeColecao), dadosSom);
       
       if (isAdmin) {
@@ -555,12 +549,16 @@ function MainApp() {
             className="instant-btn-large"
             onClick={() => reproduzirSom(somSelecionado.id, somSelecionado.audioUrl, somSelecionado.plays)}
             style={{ 
-              backgroundColor: somSelecionado.cor || '#ff5722',
-              color: corTextoBotao(somSelecionado.cor || '#ff5722')
+              backgroundColor: somSelecionado.cor || '#ff5722'
             }}
           >
-            <span style={{ position: 'relative', zIndex: 1, fontSize: '18px', fontWeight: 'bold' }}>{somSelecionado.titulo}</span>
+            {/* Botão grande sem texto dentro */}
           </button>
+        </div>
+
+        {/* Nome completo sem cortes abaixo */}
+        <div style={{ fontSize: '18px', color: '#fff', marginBottom: '8px', textAlign: 'center', maxWidth: '400px', wordBreak: 'break-word' }}>
+          {somSelecionado.titulo}
         </div>
 
         <div style={{ fontSize: '15px', color: '#ccc', marginBottom: '8px' }}>
@@ -644,36 +642,47 @@ function MainApp() {
           Nenhum botão cadastrado ainda. Clique em "+ Adicionar Som" para começar!
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
-            <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '140px' }}>
+            <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '130px' }}>
               
               {isAdmin && (
                 <button 
                   onClick={() => excluirSom(item.id, item.titulo)}
                   title="Excluir botão"
-                  style={{ position: 'absolute', top: '0px', right: '10px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
+                  style={{ position: 'absolute', top: '-5px', right: '0px', background: 'rgba(235, 87, 87, 0.2)', border: 'none', color: '#eb5757', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', zIndex: 2 }}
                 >
                   ✕
                 </button>
               )}
 
+              {/* Botão redondo limpo (sem texto dentro) */}
               <button 
                 className="instant-btn"
                 onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
                 style={{ 
-                  backgroundColor: item.cor || '#ff5722', 
-                  color: corTextoBotao(item.cor || '#ff5722'),
+                  backgroundColor: item.cor || '#ff5722',
                   marginTop: '6px' 
                 }}
               >
-                <span style={{ position: 'relative', zIndex: 1 }}>{item.titulo}</span>
+                {/* Vazio por dentro */}
               </button>
 
+              {/* Nome abaixo que quebra linha e mostra completo sem cortar */}
               <div 
                 onClick={() => setSomSelecionado(item)}
-                title="Ver detalhes"
-                style={{ fontSize: '14px', textAlign: 'center', margin: '10px 0 2px 0', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', cursor: 'pointer', color: '#fff' }}
+                title={item.titulo}
+                style={{ 
+                  fontSize: '13px', 
+                  textAlign: 'center', 
+                  margin: '8px 0 2px 0', 
+                  fontWeight: '600', 
+                  width: '100%', 
+                  cursor: 'pointer', 
+                  color: '#fff',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.25'
+                }}
                 onMouseOver={(e) => e.target.style.color = '#ff5722'}
                 onMouseOut={(e) => e.target.style.color = '#fff'}
               >
@@ -759,7 +768,7 @@ function MainApp() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold'}}, ORIGEM DO ÁUDIO</label>
               
               <input type="text" value={urlAudio.startsWith('data:') ? '[Arquivo ou Gravação Carregada]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
