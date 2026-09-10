@@ -484,16 +484,17 @@ function MainApp() {
     }
 
     if (!urlAudio || !urlAudio.trim()) {
-      alert("Nenhum áudio foi gravado ou selecionado. Por favor, grave ou envie um arquivo MP3.");
+      alert("Nenhum áudio foi gravado ou selecionado.");
       return;
     }
 
     if (urlAudio.length > 900000) {
-      alert("O áudio está muito grande. O limite para o banco gratuito é de 800KB.");
+      alert("O áudio está muito grande. O limite é de 800KB.");
       return;
     }
 
     setEnviando(true);
+    
     try {
       const novoId = Date.now().toString();
       const dadosSom = {
@@ -504,12 +505,17 @@ function MainApp() {
       };
 
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
-
+      const colecaoDestino = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
+      
       if (isAdmin) {
-        await setDoc(doc(db, 'myinstants_sons', novoId), { ...dadosSom, plays: 0 });
+        dadosSom.plays = 0;
+      }
+
+      await setDoc(doc(db, colecaoDestino, novoId), dadosSom);
+      
+      if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
-        await setDoc(doc(db, 'myinstants_pendentes', novoId), dadosSom);
         alert("Som enviado para análise do Administrador!");
       }
 
@@ -517,8 +523,8 @@ function MainApp() {
       setNovoTitulo('');
       setUrlAudio('');
     } catch (e) {
-      console.error("Erro detalhado ao salvar no Firestore:", e);
-      alert("Erro ao enviar som: " + (e.message || "Verifique as regras do Firestore no painel do Firebase."));
+      console.error("Erro ao salvar:", e);
+      alert("Erro ao salvar no Firebase: " + e.message);
     } finally {
       setEnviando(false);
     }
