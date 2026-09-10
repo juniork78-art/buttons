@@ -195,6 +195,18 @@ function MainApp() {
     '#607d8b', '#ff4081', '#00e676'
   ];
 
+  const corTextoBotao = (hexColor) => {
+    if (!hexColor) return '#fff';
+    let c = hexColor.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 140 ? '#000000' : '#ffffff';
+  };
+
   useEffect(() => {
     try {
       if (!auth) return;
@@ -376,26 +388,45 @@ function MainApp() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        } 
+      });
+      
       audioChunksRef.current = [];
       
-      const options = { mimeType: 'audio/webm;codecs=opus', audioBitsPerSecond: 32000 };
-      if (!MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        options.mimeType = 'audio/ogg;codecs=opus';
+      // Define o formato de gravação compatível com o navegador
+      let mimeType = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/mp4';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = '';
+        }
       }
 
+      const options = mimeType ? { mimeType } : {};
       const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: options.mimeType });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
         
+        if (audioBlob.size === 0) {
+          alert("A gravação falhou ou veio vazia. Tente novamente.");
+          stream.getTracks().forEach(track => track.stop());
+          setGravando(false);
+          return;
+        }
+
         if (audioBlob.size > 800 * 1024) {
           alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
           stream.getTracks().forEach(track => track.stop());
@@ -413,7 +444,8 @@ function MainApp() {
         setGravando(false);
       };
 
-      mediaRecorder.start();
+      // Inicia a gravação capturando pacotes a cada 100ms
+      mediaRecorder.start(100);
       setGravando(true);
       setTempoRestante(10);
 
@@ -430,7 +462,8 @@ function MainApp() {
       }, 1000);
 
     } catch (e) {
-      alert("Erro ao acessar o microfone.");
+      console.error(e);
+      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
       setGravando(false);
     }
   };
