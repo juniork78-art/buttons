@@ -195,18 +195,6 @@ function MainApp() {
     '#607d8b', '#ff4081', '#00e676'
   ];
 
-  const corTextoBotao = (hexColor) => {
-    if (!hexColor) return '#fff';
-    let c = hexColor.replace('#', '');
-    if (c.length === 3) c = c.split('').map(x => x + x).join('');
-    const num = parseInt(c, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 140 ? '#000000' : '#ffffff';
-  };
-
   useEffect(() => {
     try {
       if (!auth) return;
@@ -552,11 +540,9 @@ function MainApp() {
               backgroundColor: somSelecionado.cor || '#ff5722'
             }}
           >
-            {/* Botão grande sem texto dentro */}
           </button>
         </div>
 
-        {/* Nome completo sem cortes abaixo */}
         <div style={{ fontSize: '18px', color: '#fff', marginBottom: '8px', textAlign: 'center', maxWidth: '400px', wordBreak: 'break-word' }}>
           {somSelecionado.titulo}
         </div>
@@ -656,7 +642,6 @@ function MainApp() {
                 </button>
               )}
 
-              {/* Botão redondo limpo (sem texto dentro) */}
               <button 
                 className="instant-btn"
                 onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
@@ -665,10 +650,8 @@ function MainApp() {
                   marginTop: '6px' 
                 }}
               >
-                {/* Vazio por dentro */}
               </button>
 
-              {/* Nome abaixo que quebra linha e mostra completo sem cortar */}
               <div 
                 onClick={() => setSomSelecionado(item)}
                 title={item.titulo}
@@ -768,7 +751,7 @@ function MainApp() {
             </div>
 
             <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold'}}, ORIGEM DO ÁUDIO</label>
+              <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
               
               <input type="text" value={urlAudio.startsWith('data:') ? '[Arquivo ou Gravação Carregada]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
