@@ -9,6 +9,7 @@ import {
   collection, 
   doc, 
   setDoc, 
+  addDoc,
   deleteDoc,
   onSnapshot,
   updateDoc
@@ -496,7 +497,6 @@ function MainApp() {
     setEnviando(true);
     
     try {
-      const novoId = Date.now().toString();
       const dadosSom = {
         titulo: novoTitulo.trim(),
         audioUrl: urlAudio.trim(),
@@ -505,13 +505,14 @@ function MainApp() {
       };
 
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
-      const colecaoDestino = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
+      const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
       
       if (isAdmin) {
         dadosSom.plays = 0;
       }
 
-      await setDoc(doc(db, colecaoDestino, novoId), dadosSom);
+      // Usa addDoc para gerar ID automático e evitar qualquer trava de rota do Firestore
+      await addDoc(collection(db, nomeColecao), dadosSom);
       
       if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
