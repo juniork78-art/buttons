@@ -388,32 +388,22 @@ function MainApp() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      });
-      
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-      
-      // Define o formato de gravação compatível com o navegador
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/mp4';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = '';
-        }
-      }
 
-      const options = mimeType ? { mimeType } : {};
-      const mediaRecorder = new MediaRecorder(stream, options);
+      // Seleciona o mimeType ideal compatível com o navegador
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/mp4';
+
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
         }
       };
 
@@ -421,7 +411,7 @@ function MainApp() {
         const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
         
         if (audioBlob.size === 0) {
-          alert("A gravação falhou ou veio vazia. Tente novamente.");
+          alert("A gravação falhou ou veio vazia.");
           stream.getTracks().forEach(track => track.stop());
           setGravando(false);
           return;
@@ -444,8 +434,7 @@ function MainApp() {
         setGravando(false);
       };
 
-      // Inicia a gravação capturando pacotes a cada 100ms
-      mediaRecorder.start(100);
+      mediaRecorder.start();
       setGravando(true);
       setTempoRestante(10);
 
