@@ -194,9 +194,10 @@ function MainApp() {
   const currentAudioRef = useRef(null);
 
   const coresDisponiveis = [
-    '#ffffff', '#ff5722', '#e91e63', '#9c27b0', '#673ab7', 
-    '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
-    '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800'
+    '#ffffff', '#000000', '#222222', '#ff5722', '#e91e63', '#9c27b0', 
+    '#673ab7', '#3f51b5', '#2196f3', '#00bcd4', '#009688', 
+    '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#795548',
+    '#607d8b', '#e91e63', '#ff4081', '#00e676'
   ];
 
   const corTextoBotao = (hexColor) => {
