@@ -390,33 +390,19 @@ function MainApp() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
-
-      // Seleciona o mimeType ideal compatível com o navegador
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : 'audio/mp4';
-
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         
-        if (audioBlob.size === 0) {
-          alert("A gravação falhou ou veio vazia.");
-          stream.getTracks().forEach(track => track.stop());
-          setGravando(false);
-          return;
-        }
-
         if (audioBlob.size > 800 * 1024) {
           alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
           stream.getTracks().forEach(track => track.stop());
@@ -451,8 +437,7 @@ function MainApp() {
       }, 1000);
 
     } catch (e) {
-      console.error(e);
-      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
+      alert("Erro ao acessar o microfone.");
       setGravando(false);
     }
   };
