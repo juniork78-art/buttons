@@ -183,10 +183,10 @@ function MainApp() {
 
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
+  
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
-
   const currentAudioRef = useRef(null);
 
   const coresDisponiveis = [
@@ -195,18 +195,6 @@ function MainApp() {
     '#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#795548',
     '#607d8b', '#ff4081', '#00e676'
   ];
-
-  const corTextoBotao = (hexColor) => {
-    if (!hexColor) return '#fff';
-    let c = hexColor.replace('#', '');
-    if (c.length === 3) c = c.split('').map(x => x + x).join('');
-    const num = parseInt(c, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 140 ? '#000000' : '#ffffff';
-  };
 
   useEffect(() => {
     try {
@@ -434,33 +422,36 @@ function MainApp() {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true, 
+          autoGainControl: true 
+        } 
+      });
+      
       audioChunksRef.current = [];
       
-      // Prioriza o formato Ogg/Opus que é o nativo perfeito para o Firefox e amplamente suportado
-      let mimeType = 'audio/ogg;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          mimeType = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-          mimeType = 'audio/webm';
-        } else {
-          mimeType = '';
+      // Tenta usar wave/webm puro ou sem codec restrito para máxima compatibilidade no Firefox
+      let options = { mimeType: 'audio/webm' };
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        options = { mimeType: 'audio/ogg' };
+        if (!MediaRecorder.isTypeSupported('audio/ogg')) {
+          options = {};
         }
       }
 
-      const options = mimeType ? { mimeType } : {};
       const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || mimeType || 'audio/ogg' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
         
         if (audioBlob.size > 800 * 1024) {
           alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
@@ -479,7 +470,7 @@ function MainApp() {
         setGravando(false);
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(100);
       setGravando(true);
       setTempoRestante(10);
 
@@ -496,7 +487,7 @@ function MainApp() {
       }, 1000);
 
     } catch (e) {
-      alert("Erro ao acessar o microfone.");
+      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
       setGravando(false);
     }
   };
