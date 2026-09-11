@@ -222,7 +222,6 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  // Monitora cliques nas setas de Voltar / Avançar do navegador
   useEffect(() => {
     const handlePopState = async () => {
       const params = new URLSearchParams(window.location.search);
@@ -250,7 +249,6 @@ function MainApp() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [sons]);
 
-  // Carrega os sons iniciais e verifica ID na URL ao abrir o site
   useEffect(() => {
     const timerTimeout = setTimeout(() => {
       setCarregandoSons(false);
@@ -439,8 +437,24 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
       
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      // Detecção inteligente de formato compatível com Firefox e Chrome
+      let mimeType = '';
+      const tiposPossiveis = [
+        'audio/ogg;codecs=opus',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4'
+      ];
+      
+      for (const tipo of tiposPossiveis) {
+        if (MediaRecorder.isTypeSupported(tipo)) {
+          mimeType = tipo;
+          break;
+        }
+      }
+
+      const options = mimeType ? { mimeType } : {};
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -450,7 +464,7 @@ function MainApp() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/ogg' });
         
         if (audioBlob.size > 800 * 1024) {
           alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
