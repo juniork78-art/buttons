@@ -409,7 +409,7 @@ function MainApp() {
     }
   };
 
-  // GRAVADOR ESTÁVEL COM MEDIARECORDER E SUPORTE COMPATÍVEL
+  // GRAVADOR NATIVO OTIMIZADO SEM RESTRIÇÃO FORÇADA DE MIME-TYPE (DEIXA O BROWSER ESCOLHER O PADRÃO PURO)
   const alternarGravacao = async () => {
     if (gravando) {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -426,13 +426,8 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
 
-      const options = MediaRecorder.isTypeSupported('audio/webm') 
-        ? { mimeType: 'audio/webm' } 
-        : MediaRecorder.isTypeSupported('audio/mp4') 
-        ? { mimeType: 'audio/mp4' } 
-        : {};
-
-      const mediaRecorder = new MediaRecorder(stream, options);
+      // Sem passar opções forçadas, o navegador usa o codec nativo perfeito para ele mesmo
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -468,8 +463,7 @@ function MainApp() {
         setGravando(false);
       };
 
-      // Inicia a gravação capturando pacotes a cada 100ms
-      mediaRecorder.start(100);
+      mediaRecorder.start();
       setGravando(true);
       setTempoRestante(10);
 
