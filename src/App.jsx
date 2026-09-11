@@ -437,19 +437,15 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
       
-      // Detecção inteligente de formato compatível com Firefox e Chrome
-      let mimeType = '';
-      const tiposPossiveis = [
-        'audio/ogg;codecs=opus',
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4'
-      ];
-      
-      for (const tipo of tiposPossiveis) {
-        if (MediaRecorder.isTypeSupported(tipo)) {
-          mimeType = tipo;
-          break;
+      // Prioriza o formato Ogg/Opus que é o nativo perfeito para o Firefox e amplamente suportado
+      let mimeType = 'audio/ogg;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+          mimeType = 'audio/webm';
+        } else {
+          mimeType = '';
         }
       }
 
@@ -464,7 +460,7 @@ function MainApp() {
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/ogg' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || mimeType || 'audio/ogg' });
         
         if (audioBlob.size > 800 * 1024) {
           alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
