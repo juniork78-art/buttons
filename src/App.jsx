@@ -222,7 +222,35 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  // Carrega os sons e verifica se a URL possui um ?id=... para abrir direto na tela de detalhes
+  // Monitora cliques nas setas de Voltar / Avançar do navegador
+  useEffect(() => {
+    const handlePopState = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const somIdUrl = params.get('id');
+
+      if (!somIdUrl) {
+        setSomSelecionado(null);
+      } else {
+        const encontrado = sons.find(s => s.id === somIdUrl);
+        if (encontrado) {
+          setSomSelecionado(encontrado);
+        } else if (db) {
+          try {
+            const docRef = doc(db, 'myinstants_sons', somIdUrl);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+              setSomSelecionado({ id: docSnap.id, ...docSnap.data() });
+            }
+          } catch (err) {}
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [sons]);
+
+  // Carrega os sons iniciais e verifica ID na URL ao abrir o site
   useEffect(() => {
     const timerTimeout = setTimeout(() => {
       setCarregandoSons(false);
@@ -239,7 +267,6 @@ function MainApp() {
           setSons(lista);
           setCarregandoSons(false);
 
-          // Verifica se há um parâmetro 'id' na URL ao carregar
           const params = new URLSearchParams(window.location.search);
           const somIdUrl = params.get('id');
           if (somIdUrl && !somSelecionado) {
@@ -247,7 +274,6 @@ function MainApp() {
             if (encontrado) {
               setSomSelecionado(encontrado);
             } else {
-              // Se não estiver na lista carregada, busca direto no documento
               try {
                 const docRef = doc(db, 'myinstants_sons', somIdUrl);
                 const docSnap = await getDoc(docRef);
@@ -546,14 +572,12 @@ function MainApp() {
 
   const selecionarSom = (item) => {
     setSomSelecionado(item);
-    // Atualiza a URL do navegador sem recarregar a página para incluir o ID
     const novaUrl = `${window.location.origin}${window.location.pathname}?id=${item.id}`;
     window.history.pushState({ id: item.id }, '', novaUrl);
   };
 
   const voltarParaInicio = () => {
     setSomSelecionado(null);
-    // Limpa o parâmetro ID da URL
     window.history.pushState({}, '', window.location.pathname);
   };
 
