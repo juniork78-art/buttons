@@ -12,7 +12,8 @@ import {
   addDoc,
   deleteDoc,
   onSnapshot,
-  updateDoc
+  updateDoc,
+  getDoc
 } from 'firebase/firestore';
 
 const ADMIN_EMAIL = "admin@gmail.com";
@@ -221,6 +222,7 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
+  // Carrega os sons e verifica se a URL possui um ?id=... para abrir direto na tela de detalhes
   useEffect(() => {
     const timerTimeout = setTimeout(() => {
       setCarregandoSons(false);
@@ -228,7 +230,7 @@ function MainApp() {
 
     if (db) {
       try {
-        const unsubscribe = onSnapshot(collection(db, 'myinstants_sons'), (snapshot) => {
+        const unsubscribe = onSnapshot(collection(db, 'myinstants_sons'), async (snapshot) => {
           clearTimeout(timerTimeout);
           const lista = [];
           snapshot.forEach((docSnap) => {
@@ -236,6 +238,25 @@ function MainApp() {
           });
           setSons(lista);
           setCarregandoSons(false);
+
+          // Verifica se há um parâmetro 'id' na URL ao carregar
+          const params = new URLSearchParams(window.location.search);
+          const somIdUrl = params.get('id');
+          if (somIdUrl && !somSelecionado) {
+            const encontrado = lista.find(s => s.id === somIdUrl);
+            if (encontrado) {
+              setSomSelecionado(encontrado);
+            } else {
+              // Se não estiver na lista carregada, busca direto no documento
+              try {
+                const docRef = doc(db, 'myinstants_sons', somIdUrl);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                  setSomSelecionado({ id: docSnap.id, ...docSnap.data() });
+                }
+              } catch (err) {}
+            }
+          }
         }, (error) => {
           clearTimeout(timerTimeout);
           console.error("Erro ao carregar sons:", error);
@@ -301,6 +322,7 @@ function MainApp() {
         await deleteDoc(doc(db, 'myinstants_sons', id));
         if (somSelecionado && somSelecionado.id === id) {
           setSomSelecionado(null);
+          window.history.pushState({}, '', window.location.pathname);
         }
       } catch (e) {
         alert("Erro ao excluir som: " + e.message);
@@ -391,7 +413,6 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioChunksRef.current = [];
       
-      // Força o tipo de mídia correto para garantir que o player reconheça o áudio
       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
       const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
@@ -439,7 +460,7 @@ function MainApp() {
       }, 1000);
 
     } catch (e) {
-      alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
+      alert("Erro ao acessar o microfone.");
       setGravando(false);
     }
   };
@@ -523,6 +544,19 @@ function MainApp() {
     }
   };
 
+  const selecionarSom = (item) => {
+    setSomSelecionado(item);
+    // Atualiza a URL do navegador sem recarregar a página para incluir o ID
+    const novaUrl = `${window.location.origin}${window.location.pathname}?id=${item.id}`;
+    window.history.pushState({ id: item.id }, '', novaUrl);
+  };
+
+  const voltarParaInicio = () => {
+    setSomSelecionado(null);
+    // Limpa o parâmetro ID da URL
+    window.history.pushState({}, '', window.location.pathname);
+  };
+
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
   const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
 
@@ -531,7 +565,7 @@ function MainApp() {
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         
         <button 
-          onClick={() => setSomSelecionado(null)} 
+          onClick={voltarParaInicio} 
           style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
         >
           ← Voltar para Início
@@ -566,8 +600,9 @@ function MainApp() {
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '600px' }}>
           <button 
             onClick={() => {
-              navigator.clipboard.writeText(somSelecionado.audioUrl);
-              alert("Endereço do áudio copiado para a área de transferência!");
+              const linkCompartilhamento = `${window.location.origin}${window.location.pathname}?id=${somSelecionado.id}`;
+              navigator.clipboard.writeText(linkCompartilhamento);
+              alert("Link da página do som copiado para a área de transferência!");
             }}
             style={{ padding: '12px 24px', backgroundColor: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
           >
@@ -662,7 +697,7 @@ function MainApp() {
               </button>
 
               <div 
-                onClick={() => setSomSelecionado(item)}
+                onClick={() => selecionarSom(item)}
                 title={item.titulo}
                 style={{ 
                   fontSize: '13px', 
