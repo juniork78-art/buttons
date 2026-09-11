@@ -184,8 +184,10 @@ function MainApp() {
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
   
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const audioContextRef = useRef(null);
+  const processorRef = useRef(null);
+  const streamRef = useRef(null);
+  const audioDataRef = useRef([]);
   const timerRef = useRef(null);
   const currentAudioRef = useRef(null);
 
@@ -409,61 +411,34 @@ function MainApp() {
     }
   };
 
-  // GRAVADOR NATIVO OTIMIZADO SEM RESTRIÇÃO FORÇADA DE MIME-TYPE (DEIXA O BROWSER ESCOLHER O PADRÃO PURO)
+  // GRAVADOR WEB AUDIO API DIRETO (CONVERTE PARA WAV PURO - 100% COMPATÍVEL)
   const alternarGravacao = async () => {
     if (gravando) {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      setGravando(false);
+      pararGravacaoWav();
       return;
     }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioChunksRef.current = [];
+      streamRef.current = stream;
 
-      // Sem passar opções forçadas, o navegador usa o codec nativo perfeito para ele mesmo
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioCtx;
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      const source = audioCtx.createMediaStreamSource(stream);
+      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      audioDataRef.current = [];
+
+      processor.onaudioprocess = (e) => {
+        const channelData = e.inputBuffer.getChannelData(0);
+        audioDataRef.current.push(new Float32Array(channelData));
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
-        
-        if (audioBlob.size === 0) {
-          alert("A gravação falhou ou veio vazia.");
-          stream.getTracks().forEach(track => track.stop());
-          setGravando(false);
-          return;
-        }
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
 
-        if (audioBlob.size > 800 * 1024) {
-          alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
-          stream.getTracks().forEach(track => track.stop());
-          setGravando(false);
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          setUrlAudio(reader.result);
-        };
-
-        stream.getTracks().forEach(track => track.stop());
-        setGravando(false);
-      };
-
-      mediaRecorder.start();
       setGravando(true);
       setTempoRestante(10);
 
@@ -473,9 +448,7 @@ function MainApp() {
         setTempoRestante(segundos);
         if (segundos <= 0) {
           clearInterval(timerRef.current);
-          if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-            mediaRecorderRef.current.stop();
-          }
+          pararGravacaoWav();
         }
       }, 1000);
 
@@ -484,6 +457,89 @@ function MainApp() {
       alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
       setGravando(false);
     }
+  };
+
+  const pararGravacaoWav = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    try {
+      if (processorRef.current && audioContextRef.current) {
+        processorRef.current.disconnect();
+        audioContextRef.current.close();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+
+      const chunks = audioDataRef.current;
+      if (chunks.length === 0) {
+        setGravando(false);
+        return;
+      }
+
+      // Junta todos os pedaços de áudio
+      let totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+      let result = new Float32Array(totalLength);
+      let offset = 0;
+      for (let i = 0; i < chunks.length; i++) {
+        result.set(chunks[i], offset);
+        offset += chunks[i].length;
+      }
+
+      // Cria o arquivo WAV válido com cabeçalho PCM
+      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 44100;
+      const wavBuffer = criarBufferWav(result, sampleRate);
+      const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+
+      if (blob.size > 800 * 1024) {
+        alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
+        setGravando(false);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = () => {
+        setUrlAudio(reader.result);
+        setGravando(false);
+      };
+    } catch (err) {
+      console.error(err);
+      setGravando(false);
+    }
+  };
+
+  const criarBufferWav = (samples, sampleRate) => {
+    let buffer = new ArrayBuffer(44 + samples.length * 2);
+    let view = new DataView(buffer);
+
+    const escreverString = (view, offset, string) => {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    };
+
+    escreverString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    escreverString(view, 8, 'WAVE');
+    escreverString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    escreverString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return buffer;
   };
 
   const baixarAudioDireto = async (audioUrl, titulo) => {
@@ -495,7 +551,7 @@ function MainApp() {
       const link = document.createElement('a');
       link.href = blobUrl;
       const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
-      link.download = `${nomeFormatado}.webm`;
+      link.download = `${nomeFormatado}.wav`;
       
       document.body.appendChild(link);
       link.click();
@@ -505,7 +561,7 @@ function MainApp() {
       const link = document.createElement('a');
       link.href = audioUrl;
       const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
-      link.download = `${nomeFormatado}.webm`;
+      link.download = `${nomeFormatado}.wav`;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
