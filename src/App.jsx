@@ -793,7 +793,7 @@ function MainApp() {
        
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {isAdmin && sonsPendentes.length > 0 && (
+          {isAdmin && (
             <button 
               onClick={() => setModalAprovacao(true)}
               style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
