@@ -3,7 +3,9 @@ import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
   signOut, 
-  onAuthStateChanged 
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   collection, 
@@ -160,13 +162,15 @@ export default function AppWrapper() {
 
 function MainApp() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
+  const [usuarioObj, setUsuarioObj] = useState(null);
   const [sons, setSons] = useState([]);
   const [sonsPendentes, setSonsPendentes] = useState([]);
+  const [favoritos, setFavoritos] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [carregandoSons, setCarregandoSons] = useState(true);
-  
+   
   const [somSelecionado, setSomSelecionado] = useState(null);
-  
+   
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [modalLogin, setModalLogin] = useState(false);
   const [modalAprovacao, setModalAprovacao] = useState(false);
@@ -183,7 +187,7 @@ function MainApp() {
 
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
-  
+   
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const streamRef = useRef(null);
@@ -204,13 +208,65 @@ function MainApp() {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user && user.email) {
           setUsuarioLogado(user.email);
+          setUsuarioObj(user);
+          carregarFavoritos(user.uid);
         } else {
           setUsuarioLogado(null);
+          setUsuarioObj(null);
+          setFavoritos([]);
         }
       });
       return () => unsubscribe();
     } catch (e) {}
   }, []);
+
+  const carregarFavoritos = async (uid) => {
+    if (!db) return;
+    try {
+      const docRef = doc(db, 'myinstants_favoritos', uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setFavoritos(docSnap.data().lista || []);
+      } else {
+        setFavoritos([]);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const alternarFavorito = async (idSom, e) => {
+    e.stopPropagation();
+    if (!usuarioObj) {
+      alert("Você precisa entrar com uma conta Google para favoritar sons!");
+      return;
+    }
+
+    let novosFavoritos;
+    if (favoritos.includes(idSom)) {
+      novosFavoritos = favoritos.filter(fav => fav !== idSom);
+    } else {
+      novosFavoritos = [...favoritos, idSom];
+    }
+
+    setFavoritos(novosFavoritos);
+
+    try {
+      const docRef = doc(db, 'myinstants_favoritos', usuarioObj.uid);
+      await setDoc(docRef, { lista: novosFavoritos }, { merge: true });
+    } catch (err) {
+      console.error("Erro ao salvar favorito:", err);
+    }
+  };
+
+  const loginComGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      alert("Erro ao entrar com o Google: " + e.message);
+    }
+  };
 
   useEffect(() => {
     const handlePopState = async () => {
@@ -315,7 +371,7 @@ function MainApp() {
       audio.play().catch(err => console.log("Erro ao tocar áudio:", err));
 
       const novoPlays = (playsAtuais || 0) + 1;
-      
+       
       setSons(prevSons => 
         prevSons.map(s => s.id === id ? { ...s, plays: novoPlays } : s)
       );
@@ -376,6 +432,7 @@ function MainApp() {
     try {
       const result = await signInWithEmailAndPassword(auth, emailInput, senhaInput);
       setUsuarioLogado(result.user.email);
+      setUsuarioObj(result.user);
       setModalLogin(false);
       setEmailInput('');
       setSenhaInput('');
@@ -390,6 +447,8 @@ function MainApp() {
     try {
       await signOut(auth);
       setUsuarioLogado(null);
+      setUsuarioObj(null);
+      setFavoritos([]);
     } catch (e) {}
   };
 
@@ -411,7 +470,6 @@ function MainApp() {
     }
   };
 
-  // GRAVADOR WEB AUDIO API DIRETO (CONVERTE PARA WAV PURO - 100% COMPATÍVEL)
   const alternarGravacao = async () => {
     if (gravando) {
       pararGravacaoWav();
@@ -477,7 +535,6 @@ function MainApp() {
         return;
       }
 
-      // Junta todos os pedaços de áudio
       let totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
       let result = new Float32Array(totalLength);
       let offset = 0;
@@ -486,7 +543,6 @@ function MainApp() {
         offset += chunks[i].length;
       }
 
-      // Cria o arquivo WAV válido com cabeçalho PCM
       const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 44100;
       const wavBuffer = criarBufferWav(result, sampleRate);
       const blob = new Blob([wavBuffer], { type: 'audio/wav' });
@@ -547,12 +603,12 @@ function MainApp() {
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      
+       
       const link = document.createElement('a');
       link.href = blobUrl;
       const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
       link.download = `${nomeFormatado}.wav`;
-      
+       
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -586,7 +642,7 @@ function MainApp() {
     }
 
     setEnviando(true);
-    
+     
     try {
       const dadosSom = {
         titulo: novoTitulo.trim(),
@@ -597,13 +653,13 @@ function MainApp() {
 
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
       const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
-      
+       
       if (isAdmin) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
-      
+       
       if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
@@ -638,7 +694,7 @@ function MainApp() {
   if (somSelecionado) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        
+         
         <button 
           onClick={voltarParaInicio} 
           style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
@@ -650,7 +706,7 @@ function MainApp() {
           {somSelecionado.titulo}
         </h1>
 
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '20px', position: 'relative' }}>
           <button 
             className="instant-btn-large"
             onClick={() => reproduzirSom(somSelecionado.id, somSelecionado.audioUrl, somSelecionado.plays)}
@@ -659,6 +715,30 @@ function MainApp() {
             }}
           >
           </button>
+          {usuarioLogado && (
+            <button
+              onClick={(e) => alternarFavorito(somSelecionado.id, e)}
+              title={favoritos.includes(somSelecionado.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+              style={{
+                position: 'absolute',
+                bottom: '10px',
+                right: '10px',
+                background: '#1e1e1e',
+                border: '1px solid #444',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '18px',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.5)'
+              }}
+            >
+              {favoritos.includes(somSelecionado.id) ? '❤️' : '🤍'}
+            </button>
+          )}
         </div>
 
         <div style={{ fontSize: '18px', color: '#fff', marginBottom: '8px', textAlign: 'center', maxWidth: '400px', wordBreak: 'break-word' }}>
@@ -697,15 +777,28 @@ function MainApp() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
-      
+       
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px' }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px', alignItems: 'center' }}>
           {isAdmin && sonsPendentes.length > 0 && (
             <button 
               onClick={() => setModalAprovacao(true)}
               style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
             >
               🔔 Aprovação ({sonsPendentes.length})
+            </button>
+          )}
+
+          {usuarioLogado ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
+              <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado}</span>
+              <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                Sair
+              </button>
+            </div>
+          ) : (
+            <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              🌐 Entrar com Google
             </button>
           )}
 
@@ -750,7 +843,7 @@ function MainApp() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
             <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '130px' }}>
-              
+               
               {isAdmin && (
                 <button 
                   onClick={() => excluirSom(item.id, item.titulo)}
@@ -761,15 +854,42 @@ function MainApp() {
                 </button>
               )}
 
-              <button 
-                className="instant-btn"
-                onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
-                style={{ 
-                  backgroundColor: item.cor || '#ff5722',
-                  marginTop: '6px' 
-                }}
-              >
-              </button>
+              <div style={{ position: 'relative', marginTop: '6px' }}>
+                <button 
+                  className="instant-btn"
+                  onClick={() => reproduzirSom(item.id, item.audioUrl, item.plays)}
+                  style={{ 
+                    backgroundColor: item.cor || '#ff5722'
+                  }}
+                >
+                </button>
+
+                {usuarioLogado && (
+                  <button
+                    onClick={(e) => alternarFavorito(item.id, e)}
+                    title={favoritos.includes(item.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      background: '#1e1e1e',
+                      border: '1px solid #444',
+                      borderRadius: '50%',
+                      width: '30px',
+                      height: '30px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
+                      zIndex: 3
+                    }}
+                  >
+                    {favoritos.includes(item.id) ? '❤️' : '🤍'}
+                  </button>
+                )}
+              </div>
 
               <div 
                 onClick={() => selecionarSom(item)}
@@ -803,7 +923,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff9800', fontSize: '18px' }}>Sons Pendentes de Aprovação</h3>
-            
+             
             {sonsPendentes.length === 0 ? (
               <p style={{ color: '#888', fontSize: '14px' }}>Nenhum som pendente no momento.</p>
             ) : (
@@ -838,7 +958,7 @@ function MainApp() {
           <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff5722', fontSize: '18px', textAlign: 'center' }}>Painel do Administrador</h3>
             {erroLogin && <p style={{ color: '#ff5252', fontSize: '13px', marginBottom: '12px', background: '#3b1c1c', padding: '8px', borderRadius: '4px' }}>{erroLogin}</p>}
-            
+             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>E-MAIL</label>
               <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -863,7 +983,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
-            
+             
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
               <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Minha Voz" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -871,7 +991,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
-              
+               
               <input type="text" value={urlAudio.startsWith('data:') ? '[Áudio Gravado com Sucesso]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -892,7 +1012,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
-              
+               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
                 {coresDisponiveis.map((corHex) => (
                   <div 
