@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "adminm@gmail.com";
+const ADMIN_EMAIL = "admin@gmail.com";
 
 try {
   const faviconSvg = `
@@ -793,7 +793,7 @@ function MainApp() {
        
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {isAdmin && (
+          {isAdmin && sonsPendentes.length > 0 && (
             <button 
               onClick={() => setModalAprovacao(true)}
               style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
@@ -804,21 +804,20 @@ function MainApp() {
 
           {usuarioLogado ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
-              <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado}</span>
+              <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado} {isAdmin && '(Admin)'}</span>
               <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
                 Sair
               </button>
             </div>
           ) : (
-            <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🌐 Entrar com Google
-            </button>
-          )}
-
-          {!isAdmin && (
-            <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
-              Entrar como Admin
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                🌐 Entrar com Google
+              </button>
+              <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                Entrar como Admin
+              </button>
+            </div>
           )}
         </div>
 
