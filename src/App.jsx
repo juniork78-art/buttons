@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "admin@gmail.com";
+const ADMIN_EMAIL = "adminm@gmail.com";
 
 try {
   const faviconSvg = `
@@ -203,7 +203,6 @@ function MainApp() {
     '#607d8b', '#ff4081', '#00e676'
   ];
 
-  // Gerencia a sessão do usuário
   useEffect(() => {
     try {
       if (!auth) return;
@@ -222,7 +221,6 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  // Sincroniza os favoritos em tempo real com o Firestore assim que o usuário estiver logado
   useEffect(() => {
     if (!usuarioObj || !db) {
       setFavoritos([]);
@@ -795,7 +793,7 @@ function MainApp() {
        
       <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
         <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {isAdmin && sonsPendentes.length > 0 && (
+          {isAdmin && (
             <button 
               onClick={() => setModalAprovacao(true)}
               style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
@@ -817,11 +815,7 @@ function MainApp() {
             </button>
           )}
 
-          {isAdmin ? (
-            <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-              Sair (Admin)
-            </button>
-          ) : (
+          {!isAdmin && (
             <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
               Entrar como Admin
             </button>
