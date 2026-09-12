@@ -203,6 +203,7 @@ function MainApp() {
     '#607d8b', '#ff4081', '#00e676'
   ];
 
+  // Gerencia a sessão do usuário
   useEffect(() => {
     try {
       if (!auth) return;
@@ -210,7 +211,6 @@ function MainApp() {
         if (user && user.email) {
           setUsuarioLogado(user.email);
           setUsuarioObj(user);
-          carregarFavoritos(user.uid);
         } else {
           setUsuarioLogado(null);
           setUsuarioObj(null);
@@ -222,20 +222,25 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  const carregarFavoritos = async (uid) => {
-    if (!db) return;
-    try {
-      const docRef = doc(db, 'myinstants_favoritos', uid);
-      const docSnap = await getDoc(docRef);
+  // Sincroniza os favoritos em tempo real com o Firestore assim que o usuário estiver logado
+  useEffect(() => {
+    if (!usuarioObj || !db) {
+      setFavoritos([]);
+      return;
+    }
+    const docRef = doc(db, 'myinstants_favoritos', usuarioObj.uid);
+    const unsubscribeFav = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         setFavoritos(docSnap.data().lista || []);
       } else {
         setFavoritos([]);
       }
-    } catch (e) {
-      console.error(e);
-    }
-  };
+    }, (error) => {
+      console.error("Erro ao sincronizar favoritos:", error);
+    });
+
+    return () => unsubscribeFav();
+  }, [usuarioObj]);
 
   const alternarFavorito = async (idSom, e) => {
     e.stopPropagation();
