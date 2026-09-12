@@ -167,6 +167,7 @@ function MainApp() {
   const [sonsPendentes, setSonsPendentes] = useState([]);
   const [favoritos, setFavoritos] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
+  const [filtroFavoritos, setFiltroFavoritos] = useState(false);
   const [carregandoSons, setCarregandoSons] = useState(true);
    
   const [somSelecionado, setSomSelecionado] = useState(null);
@@ -214,6 +215,7 @@ function MainApp() {
           setUsuarioLogado(null);
           setUsuarioObj(null);
           setFavoritos([]);
+          setFiltroFavoritos(false);
         }
       });
       return () => unsubscribe();
@@ -449,6 +451,7 @@ function MainApp() {
       setUsuarioLogado(null);
       setUsuarioObj(null);
       setFavoritos([]);
+      setFiltroFavoritos(false);
     } catch (e) {}
   };
 
@@ -689,7 +692,12 @@ function MainApp() {
   };
 
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
-  const sonsFiltrados = sons.filter(s => s.titulo.toLowerCase().includes(termoBusca.toLowerCase()));
+  
+  const sonsFiltrados = sons.filter(s => {
+    const matchBusca = s.titulo.toLowerCase().includes(termoBusca.toLowerCase());
+    const matchFavorito = filtroFavoritos ? favoritos.includes(s.id) : true;
+    return matchBusca && matchFavorito;
+  });
 
   if (somSelecionado) {
     return (
@@ -817,7 +825,7 @@ function MainApp() {
         <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '35px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <input 
           type="text" 
           placeholder="Pesquisar som..." 
@@ -833,11 +841,50 @@ function MainApp() {
         </button>
       </div>
 
+      {/* ABA DE FILTRO (TODOS / FAVORITOS) */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '35px' }}>
+        <button
+          onClick={() => setFiltroFavoritos(false)}
+          style={{
+            padding: '8px 20px',
+            borderRadius: '20px',
+            border: 'none',
+            backgroundColor: !filtroFavoritos ? '#ff5722' : '#1e1e1e',
+            color: '#fff',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            fontSize: '13px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+          }}
+        >
+          Todos os Sons
+        </button>
+
+        {usuarioLogado && (
+          <button
+            onClick={() => setFiltroFavoritos(true)}
+            style={{
+              padding: '8px 20px',
+              borderRadius: '20px',
+              border: 'none',
+              backgroundColor: filtroFavoritos ? '#ff5722' : '#1e1e1e',
+              color: '#fff',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontSize: '13px',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+            }}
+          >
+            ❤️ Meus Favoritos ({favoritos.length})
+          </button>
+        )}
+      </div>
+
       {carregandoSons ? (
         <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>Carregando botões...</div>
-      ) : sons.length === 0 ? (
+      ) : sonsFiltrados.length === 0 ? (
         <div style={{ textAlign: 'center', color: '#888', marginTop: '50px', fontSize: '16px' }}>
-          Nenhum botão cadastrado ainda. Clique em "+ Adicionar Som" para começar!
+          {filtroFavoritos ? 'Você ainda não favoritou nenhum som!' : 'Nenhum botão cadastrado ainda.'}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
