@@ -244,7 +244,8 @@ function MainApp() {
 
   const alternarFavorito = async (idSom, e) => {
     e.stopPropagation();
-    if (!usuarioObj) {
+    const user = auth.currentUser;
+    if (!user) {
       alert("Você precisa entrar com uma conta Google para favoritar sons!");
       return;
     }
@@ -259,10 +260,11 @@ function MainApp() {
     setFavoritos(novosFavoritos);
 
     try {
-      const docRef = doc(db, 'myinstants_favoritos', usuarioObj.uid);
+      const docRef = doc(db, 'myinstants_favoritos', user.uid);
       await setDoc(docRef, { lista: novosFavoritos }, { merge: true });
     } catch (err) {
       console.error("Erro ao salvar favorito:", err);
+      alert("Erro ao salvar favorito no banco de dados. Verifique as Regras do Firestore.");
     }
   };
 
