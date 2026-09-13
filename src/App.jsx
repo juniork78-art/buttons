@@ -652,6 +652,10 @@ function MainApp() {
     setEnviando(true);
     
     try {
+      // Comparação robusta ignorando maiúsculas/minúsculas e espaços
+      const isAdminCheck = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+      const nomeColecao = isAdminCheck ? 'myinstants_sons' : 'myinstants_pendentes';
+      
       const dadosSom = {
         titulo: novoTitulo.trim(),
         audioUrl: urlAudio.trim(),
@@ -659,16 +663,13 @@ function MainApp() {
         criadoEm: Date.now()
       };
 
-      const isAdmin = usuarioLogado === ADMIN_EMAIL;
-      const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
-      
-      if (isAdmin) {
+      if (isAdminCheck) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
       
-      if (isAdmin) {
+      if (isAdminCheck) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
         alert("Som enviado para análise do Administrador!");
@@ -696,7 +697,8 @@ function MainApp() {
     window.history.pushState({}, '', window.location.pathname);
   };
 
-  const isAdmin = usuarioLogado === ADMIN_EMAIL;
+  // Comparação segura e robusta para o Administrador
+  const isAdmin = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
   
   const sonsFiltrados = sons.filter(s => {
     const matchBusca = s.titulo.toLowerCase().includes(termoBusca.toLowerCase());
