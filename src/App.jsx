@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "adminm@gmail.com";
+const ADMIN_EMAIL = "admin@gmail.com";
 
 try {
   const faviconSvg = `
