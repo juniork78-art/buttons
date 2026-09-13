@@ -650,7 +650,7 @@ function MainApp() {
     }
 
     setEnviando(true);
-     
+    
     try {
       const dadosSom = {
         titulo: novoTitulo.trim(),
@@ -661,13 +661,13 @@ function MainApp() {
 
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
       const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
-       
+      
       if (isAdmin) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
-       
+      
       if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
@@ -697,7 +697,7 @@ function MainApp() {
   };
 
   const isAdmin = usuarioLogado === ADMIN_EMAIL;
-  
+   
   const sonsFiltrados = sons.filter(s => {
     const matchBusca = s.titulo.toLowerCase().includes(termoBusca.toLowerCase());
     const matchFavorito = filtroFavoritos ? favoritos.includes(s.id) : true;
@@ -790,39 +790,49 @@ function MainApp() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
-       
-      <header style={{ textAlign: 'center', marginBottom: '30px', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {isAdmin && (
-            <button 
-              onClick={() => setModalAprovacao(true)}
-              style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-            >
-              🔔 Aprovação ({sonsPendentes.length})
-            </button>
-          )}
-
-          {usuarioLogado ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
-              <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado} {isAdmin && '(Admin)'}</span>
-              <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
-                Sair
+      
+      {/* CABEÇALHO MODIFICADO APENAS PARA NÃO QUEBRAR NO CELULAR */}
+      <header style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            {isAdmin && sonsPendentes.length > 0 && (
+              <button 
+                onClick={() => setModalAprovacao(true)}
+                style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+              >
+                🔔 Aprovação ({sonsPendentes.length})
               </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: '8px' }}>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {usuarioLogado ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
+                <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado}</span>
+                <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
+                  Sair
+                </button>
+              </div>
+            ) : (
               <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 🌐 Entrar com Google
               </button>
+            )}
+
+            {isAdmin ? (
+              <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Sair (Admin)
+              </button>
+            ) : (
               <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
                 Entrar como Admin
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>Botões loucos</h1>
-        <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
+        <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0', textAlign: 'center' }}>Botões loucos</h1>
+        <p style={{ color: '#888', margin: 0, fontSize: '14px', textAlign: 'center' }}>Os melhores botões de som da internet em tempo real</p>
       </header>
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '20px', flexWrap: 'wrap' }}>
@@ -970,7 +980,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff9800', fontSize: '18px' }}>Sons Pendentes de Aprovação</h3>
-             
+ 
             {sonsPendentes.length === 0 ? (
               <p style={{ color: '#888', fontSize: '14px' }}>Nenhum som pendente no momento.</p>
             ) : (
@@ -1005,7 +1015,7 @@ function MainApp() {
           <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff5722', fontSize: '18px', textAlign: 'center' }}>Painel do Administrador</h3>
             {erroLogin && <p style={{ color: '#ff5252', fontSize: '13px', marginBottom: '12px', background: '#3b1c1c', padding: '8px', borderRadius: '4px' }}>{erroLogin}</p>}
-             
+ 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>E-MAIL</label>
               <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -1030,7 +1040,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
-             
+ 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
               <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Minha Voz" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -1038,7 +1048,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
-               
+ 
               <input type="text" value={urlAudio.startsWith('data:') ? '[Áudio Gravado com Sucesso]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -1059,7 +1069,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
-               
+ 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
                 {coresDisponiveis.map((corHex) => (
                   <div 
