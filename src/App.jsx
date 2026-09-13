@@ -791,11 +791,10 @@ function MainApp() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
-      {/* CABEÇALHO FLEXÍVEL E RESPONSIVO */}
-      <header style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+      {/* CABEÇALHO ORGANIZADO E RESPONSIVO PARA CELULARES */}
+      <header style={{ marginBottom: '25px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
         
-        {/* BOTÕES DE CONTA E ADMIN NO TOPO */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', maxWidth: '1200px' }}>
+        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             {isAdmin && (
               <button 
@@ -807,7 +806,7 @@ function MainApp() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {usuarioLogado ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
                 <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado} {isAdmin && '(Admin)'}</span>
@@ -828,7 +827,6 @@ function MainApp() {
           </div>
         </div>
 
-        {/* TÍTULO E SUBTÍTULO CENTRALIZADOS */}
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ color: '#ff5722', fontSize: '32px', margin: '0 0 5px 0' }}>Botões loucos</h1>
           <p style={{ color: '#888', margin: 0, fontSize: '14px' }}>Os melhores botões de som da internet em tempo real</p>
