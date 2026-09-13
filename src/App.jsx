@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "adminm@gmail.com";
+const ADMIN_EMAIL = "admin@gmail.com";
 
 try {
   const faviconSvg = `
@@ -488,8 +488,7 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Usar 16kHz para otimizar o tamanho do arquivo WAV gravado (evita estouro de 800KB em 10 segundos)
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       audioContextRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
@@ -552,11 +551,11 @@ function MainApp() {
         offset += chunks[i].length;
       }
 
-      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 16000;
+      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 44100;
       const wavBuffer = criarBufferWav(result, sampleRate);
       const blob = new Blob([wavBuffer], { type: 'audio/wav' });
 
-      if (blob.size > 900 * 1024) {
+      if (blob.size > 800 * 1024) {
         alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
         setGravando(false);
         return;
@@ -645,7 +644,7 @@ function MainApp() {
       return;
     }
 
-    if (urlAudio.length > 950000) {
+    if (urlAudio.length > 900000) {
       alert("O áudio está muito grande. O limite é de 800KB.");
       return;
     }
@@ -653,9 +652,6 @@ function MainApp() {
     setEnviando(true);
     
     try {
-      const isAdminCheck = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
-      const nomeColecao = isAdminCheck ? 'myinstants_sons' : 'myinstants_pendentes';
-      
       const dadosSom = {
         titulo: novoTitulo.trim(),
         audioUrl: urlAudio.trim(),
@@ -663,13 +659,16 @@ function MainApp() {
         criadoEm: Date.now()
       };
 
-      if (isAdminCheck) {
+      const isAdmin = usuarioLogado === ADMIN_EMAIL;
+      const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
+      
+      if (isAdmin) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
       
-      if (isAdminCheck) {
+      if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
         alert("Som enviado para análise do Administrador!");
@@ -697,7 +696,7 @@ function MainApp() {
     window.history.pushState({}, '', window.location.pathname);
   };
 
-  const isAdmin = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+  const isAdmin = usuarioLogado === ADMIN_EMAIL;
   
   const sonsFiltrados = sons.filter(s => {
     const matchBusca = s.titulo.toLowerCase().includes(termoBusca.toLowerCase());
@@ -792,7 +791,7 @@ function MainApp() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
       
-      {/* CABEÇALHO ORGANIZADO E RESPONSIVO SEM DUPLICAÇÃO */}
+      {/* CABEÇALHO ORGANIZADO, RESPONSIVO E COM BOTÃO DE APROVAÇÃO SEMPRE VISÍVEL PARA ADMIN */}
       <header style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
         <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
