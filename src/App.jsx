@@ -18,7 +18,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-const ADMIN_EMAIL = "admin@gmail.com";
+const ADMIN_EMAIL = "adminm@gmail.com";
 
 try {
   const faviconSvg = `
@@ -169,9 +169,9 @@ function MainApp() {
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroFavoritos, setFiltroFavoritos] = useState(false);
   const [carregandoSons, setCarregandoSons] = useState(true);
-   
+  
   const [somSelecionado, setSomSelecionado] = useState(null);
-   
+  
   const [modalNovoSom, setModalNovoSom] = useState(false);
   const [modalLogin, setModalLogin] = useState(false);
   const [modalAprovacao, setModalAprovacao] = useState(false);
@@ -188,7 +188,7 @@ function MainApp() {
 
   const [gravando, setGravando] = useState(false);
   const [tempoRestante, setTempoRestante] = useState(10);
-   
+  
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const streamRef = useRef(null);
@@ -378,7 +378,7 @@ function MainApp() {
       audio.play().catch(err => console.log("Erro ao tocar áudio:", err));
 
       const novoPlays = (playsAtuais || 0) + 1;
-       
+      
       setSons(prevSons => 
         prevSons.map(s => s.id === id ? { ...s, plays: novoPlays } : s)
       );
@@ -488,7 +488,8 @@ function MainApp() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // Usar 16kHz para otimizar o tamanho do arquivo WAV gravado (evita estouro de 800KB em 10 segundos)
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = audioCtx;
 
       const source = audioCtx.createMediaStreamSource(stream);
@@ -551,11 +552,11 @@ function MainApp() {
         offset += chunks[i].length;
       }
 
-      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 44100;
+      const sampleRate = audioContextRef.current ? audioContextRef.current.sampleRate : 16000;
       const wavBuffer = criarBufferWav(result, sampleRate);
       const blob = new Blob([wavBuffer], { type: 'audio/wav' });
 
-      if (blob.size > 800 * 1024) {
+      if (blob.size > 900 * 1024) {
         alert("A gravação ficou muito longa. Tente gravar por menos tempo.");
         setGravando(false);
         return;
@@ -611,12 +612,12 @@ function MainApp() {
       const response = await fetch(audioUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-       
+      
       const link = document.createElement('a');
       link.href = blobUrl;
       const nomeFormatado = (titulo || 'audio').trim().replace(/\.(mp3|webm|ogg|wav)$/i, '');
       link.download = `${nomeFormatado}.wav`;
-       
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -644,14 +645,17 @@ function MainApp() {
       return;
     }
 
-    if (urlAudio.length > 900000) {
+    if (urlAudio.length > 950000) {
       alert("O áudio está muito grande. O limite é de 800KB.");
       return;
     }
 
     setEnviando(true);
-     
+    
     try {
+      const isAdminCheck = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+      const nomeColecao = isAdminCheck ? 'myinstants_sons' : 'myinstants_pendentes';
+      
       const dadosSom = {
         titulo: novoTitulo.trim(),
         audioUrl: urlAudio.trim(),
@@ -659,16 +663,13 @@ function MainApp() {
         criadoEm: Date.now()
       };
 
-      const isAdmin = usuarioLogado === ADMIN_EMAIL;
-      const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
-       
-      if (isAdmin) {
+      if (isAdminCheck) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
-       
-      if (isAdmin) {
+      
+      if (isAdminCheck) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
         alert("Som enviado para análise do Administrador!");
@@ -696,8 +697,8 @@ function MainApp() {
     window.history.pushState({}, '', window.location.pathname);
   };
 
-  const isAdmin = usuarioLogado === ADMIN_EMAIL;
-   
+  const isAdmin = usuarioLogado && usuarioLogado.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase();
+  
   const sonsFiltrados = sons.filter(s => {
     const matchBusca = s.titulo.toLowerCase().includes(termoBusca.toLowerCase());
     const matchFavorito = filtroFavoritos ? favoritos.includes(s.id) : true;
@@ -707,7 +708,7 @@ function MainApp() {
   if (somSelecionado) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '30px 20px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-         
+        
         <button 
           onClick={voltarParaInicio} 
           style={{ alignSelf: 'flex-start', background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '20px' }}
@@ -790,7 +791,7 @@ function MainApp() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
-       
+      
       {/* CABEÇALHO ORGANIZADO E RESPONSIVO SEM DUPLICAÇÃO */}
       <header style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
         <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -895,7 +896,7 @@ function MainApp() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '25px', maxWidth: '1200px', margin: '0 auto', justifyItems: 'center' }}>
           {sonsFiltrados.map((item) => (
             <div key={item.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', width: '130px' }}>
-               
+              
               {isAdmin && (
                 <button 
                   onClick={() => excluirSom(item.id, item.titulo)}
@@ -975,7 +976,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '500px', border: '1px solid #333', maxHeight: '80vh', overflowY: 'auto' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff9800', fontSize: '18px' }}>Sons Pendentes de Aprovação</h3>
- 
+            
             {sonsPendentes.length === 0 ? (
               <p style={{ color: '#888', fontSize: '14px' }}>Nenhum som pendente no momento.</p>
             ) : (
@@ -1010,7 +1011,7 @@ function MainApp() {
           <form onSubmit={handleLoginAdmin} style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '380px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#ff5722', fontSize: '18px', textAlign: 'center' }}>Painel do Administrador</h3>
             {erroLogin && <p style={{ color: '#ff5252', fontSize: '13px', marginBottom: '12px', background: '#3b1c1c', padding: '8px', borderRadius: '4px' }}>{erroLogin}</p>}
- 
+            
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>E-MAIL</label>
               <input type="email" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -1035,7 +1036,7 @@ function MainApp() {
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '15px', boxSizing: 'border-box' }}>
           <div style={{ background: '#1e1e1e', padding: '28px', borderRadius: '10px', width: '100%', maxWidth: '400px', border: '1px solid #333', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
             <h3 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '18px' }}>{isAdmin ? 'Adicionar Novo Botão de Som' : 'Enviar Som para Análise'}</h3>
- 
+            
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>TÍTULO DO SOM</label>
               <input type="text" value={novoTitulo} onChange={(e) => setNovoTitulo(e.target.value)} placeholder="Ex: Minha Voz" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box' }} />
@@ -1043,7 +1044,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>ORIGEM DO ÁUDIO</label>
- 
+              
               <input type="text" value={urlAudio.startsWith('data:') ? '[Áudio Gravado com Sucesso]' : urlAudio} onChange={(e) => setUrlAudio(e.target.value)} placeholder="Cole o link .mp3" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #444', background: '#121212', color: '#fff', boxSizing: 'border-box', fontSize: '13px', marginBottom: '8px' }} />
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -1064,7 +1065,7 @@ function MainApp() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>COR DO BOTÃO</label>
- 
+              
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
                 {coresDisponiveis.map((corHex) => (
                   <div 
