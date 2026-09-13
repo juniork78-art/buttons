@@ -650,7 +650,7 @@ function MainApp() {
     }
 
     setEnviando(true);
-    
+     
     try {
       const dadosSom = {
         titulo: novoTitulo.trim(),
@@ -661,13 +661,13 @@ function MainApp() {
 
       const isAdmin = usuarioLogado === ADMIN_EMAIL;
       const nomeColecao = isAdmin ? 'myinstants_sons' : 'myinstants_pendentes';
-      
+       
       if (isAdmin) {
         dadosSom.plays = 0;
       }
 
       await addDoc(collection(db, nomeColecao), dadosSom);
-      
+       
       if (isAdmin) {
         alert("Som adicionado e publicado com sucesso!");
       } else {
@@ -790,12 +790,12 @@ function MainApp() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#121212', color: '#fff', padding: '20px', boxSizing: 'border-box' }}>
-      
-      {/* CABEÇALHO MODIFICADO APENAS PARA NÃO QUEBRAR NO CELULAR */}
+       
+      {/* CABEÇALHO ORGANIZADO E RESPONSIVO SEM DUPLICAÇÃO */}
       <header style={{ marginBottom: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
         <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            {isAdmin && sonsPendentes.length > 0 && (
+            {isAdmin && (
               <button 
                 onClick={() => setModalAprovacao(true)}
                 style={{ background: '#ff9800', border: 'none', color: '#000', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
@@ -805,28 +805,23 @@ function MainApp() {
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             {usuarioLogado ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#1e1e1e', padding: '4px 10px', borderRadius: '6px', border: '1px solid #333' }}>
-                <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado}</span>
+                <span style={{ fontSize: '12px', color: '#aaa' }}>{usuarioLogado} {isAdmin && '(Admin)'}</span>
                 <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}>
                   Sair
                 </button>
               </div>
             ) : (
-              <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                🌐 Entrar com Google
-              </button>
-            )}
-
-            {isAdmin ? (
-              <button onClick={handleLogout} style={{ background: 'transparent', border: '1px solid #ff5722', color: '#ff5722', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
-                Sair (Admin)
-              </button>
-            ) : (
-              <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
-                Entrar como Admin
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button onClick={loginComGoogle} style={{ background: '#ffffff', color: '#000000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🌐 Entrar com Google
+                </button>
+                <button onClick={() => setModalLogin(true)} style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                  Entrar como Admin
+                </button>
+              </div>
             )}
           </div>
         </div>
