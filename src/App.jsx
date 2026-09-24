@@ -19,6 +19,27 @@ import {
 } from 'firebase/firestore';
 
 const ADMIN_EMAIL = "admin@gmail.com";
+const SONS_CACHE_KEY = 'myinstants_sons_botoes_v1';
+
+function lerBotoesSalvos() {
+  try {
+    const lista = JSON.parse(localStorage.getItem(SONS_CACHE_KEY) || '[]');
+    return Array.isArray(lista) ? lista.filter(s => s && s.id && s.titulo) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function salvarBotoes(lista) {
+  try {
+    // Áudios em base64 ficam fora do cache para não exceder a quota do navegador.
+    const botoes = lista.map(({ id, titulo, cor, plays, audioUrl }) => ({
+      id, titulo, cor, plays,
+      audioUrl: audioUrl && !audioUrl.startsWith('data:') ? audioUrl : null
+    }));
+    localStorage.setItem(SONS_CACHE_KEY, JSON.stringify(botoes));
+  } catch (_) { /* Navegação privada ou armazenamento indisponível. */ }
+}
 
 try {
   const faviconSvg = `
@@ -163,12 +184,12 @@ export default function AppWrapper() {
 function MainApp() {
   const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [usuarioObj, setUsuarioObj] = useState(null);
-  const [sons, setSons] = useState([]);
+  const [sons, setSons] = useState(lerBotoesSalvos);
   const [sonsPendentes, setSonsPendentes] = useState([]);
   const [favoritos, setFavoritos] = useState([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [filtroFavoritos, setFiltroFavoritos] = useState(false);
-  const [carregandoSons, setCarregandoSons] = useState(true);
+  const [carregandoSons, setCarregandoSons] = useState(() => lerBotoesSalvos().length === 0);
   
   const [somSelecionado, setSomSelecionado] = useState(null);
   
@@ -316,6 +337,7 @@ function MainApp() {
             lista.push({ id: docSnap.id, ...docSnap.data() });
           });
           setSons(lista);
+          salvarBotoes(lista);
           setCarregandoSons(false);
 
           const params = new URLSearchParams(window.location.search);
@@ -351,7 +373,7 @@ function MainApp() {
   }, []);
 
   useEffect(() => {
-    if (db) {
+    if (db && usuarioLogado?.trim().toLowerCase() === ADMIN_EMAIL.trim().toLowerCase()) {
       try {
         const unsubscribe = onSnapshot(collection(db, 'myinstants_pendentes'), (snapshot) => {
           const lista = [];
@@ -363,10 +385,15 @@ function MainApp() {
         return () => unsubscribe();
       } catch (e) {}
     }
-  }, []);
+  }, [usuarioLogado]);
 
   const reproduzirSom = async (id, audioUrl, playsAtuais) => {
     try {
+      if (!audioUrl) {
+        const snap = await getDoc(doc(db, 'myinstants_sons', id));
+        if (!snap.exists() || !snap.data().audioUrl) throw new Error('Áudio indisponível');
+        audioUrl = snap.data().audioUrl;
+      }
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
         currentAudioRef.current.currentTime = 0;
